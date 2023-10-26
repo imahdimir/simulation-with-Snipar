@@ -18,7 +18,7 @@ class Args :
     h2 = 0.5
     outprefix = 'sim/'
     nfam = 30 * 10 ** 3
-    impute = True
+    impute = False
     n_random = 0
     n_am = 22
     save_par_gts = True
@@ -260,6 +260,8 @@ def main(args) :
                             args)
 
     # save phenotype genotype for the second last generation (parents)
+    print('*** Parents Generation ***')
+
     n_last = str(int(n_last) - 1)
     gen_out_suf = '_par'
     par_gen_out_suf = '_gpar'
