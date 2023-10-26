@@ -16,7 +16,7 @@ from snipar.utilities import encode_str_array
 class Args :
     n_causal = 1000
     h2 = 0.5
-    outprefix = './'
+    outprefix = 'sim/'
     nfam = 30 * 10 ** 3
     impute = True
     n_random = 0
