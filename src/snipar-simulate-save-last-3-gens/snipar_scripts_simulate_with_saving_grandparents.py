@@ -260,7 +260,7 @@ def main(args) :
                             args)
 
     # save phenotype genotype for the second last generation (parents)
-    n_last += -1
+    n_last = str(int(n_last) - 1)
     gen_out_suf = '_par'
     par_gen_out_suf = '_gpar'
 
