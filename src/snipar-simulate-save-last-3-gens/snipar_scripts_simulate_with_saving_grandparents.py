@@ -41,6 +41,7 @@ def save_phenotype_genotype(n_last ,
                             haps ,
                             ibd ,
                             a ,
+                            causal_output ,
                             args
                             ) :
     last_gen = [x.split('_')[0] == n_last for x in ped[: , 0]]
@@ -151,59 +152,60 @@ def save_phenotype_genotype(n_last ,
         del gts_chr
 
     # Write IBD segments
-    snp_count = 0
-    sibpairs = ped[last_gen , 1]
-    sibpairs = sibpairs.reshape((int(sibpairs.shape[0] / 2) , 2))
-    if args.v_indir == 0 :
-        causal_out = np.zeros((a.shape[0] , 5) , dtype = 'U30')
-    else :
-        causal_out = np.zeros((a.shape[0] , 5) , dtype = 'U30')
-    for i in range(len(haps)) :
-        print('Writing IBD segments for chromosome ' + str(chroms[i]))
-        # Segments
-        if not args.unphased_impute :
-            ibd[i] = np.sum(ibd[i] , axis = 2)
-        _ = write_segs_from_matrix(ibd[i] ,
-                                   sibpairs ,
-                                   snp_ids[i] ,
-                                   positions[i] ,
-                                   maps[i] ,
-                                   chroms[i] ,
-                                   args.outprefix + 'chr_' + str(chroms[
-                                                                     i]) + gen_out_suf + '.segments.gz')
-        # Causal effects
+    if causal_output :
+        snp_count = 0
+        sibpairs = ped[last_gen , 1]
+        sibpairs = sibpairs.reshape((int(sibpairs.shape[0] / 2) , 2))
         if args.v_indir == 0 :
-            a_chr = a[snp_count :(snp_count + snp_ids[i].shape[0])]
-            a_chr_v1 = a_chr + np.random.normal(0 , np.std(a_chr) , a_chr.shape)
-            causal_out[snp_count :(snp_count + snp_ids[i].shape[0]) ,
-            :] = np.vstack((snp_ids[i] , alleles[i][: , 0] , alleles[i][: , 1] ,
-                            a_chr , a_chr_v1)).T
-            if i == 0 :
-                causal_out = np.vstack((np.array(['SNP' , 'A1' , 'A2' ,
-                                                  'direct' ,
-                                                  'direct_v1']).reshape((1 ,
-                                                                         5)) ,
-                                        causal_out))
+            causal_out = np.zeros((a.shape[0] , 5) , dtype = 'U30')
         else :
-            a_chr = a[snp_count :(snp_count + snp_ids[i].shape[0]) , :]
-            causal_out[snp_count :(snp_count + snp_ids[i].shape[0]) ,
-            :] = np.vstack((snp_ids[i] , alleles[i][: , 0] , alleles[i][: , 1] ,
-                            a_chr[: , 0] , a_chr[: , 1])).T
-            if i == 0 :
-                causal_out = np.vstack((
-                        np.array(['SNP' , 'A1' , 'A2' , 'direct' ,
-                                  'indirect']).reshape((1 , 5)) , causal_out))
-        snp_count += snp_ids[i].shape[0]  # count
-    np.savetxt(args.outprefix + 'causal_effects' + gen_out_suf + '.txt' ,
-               causal_out ,
-               fmt = '%s')
+            causal_out = np.zeros((a.shape[0] , 5) , dtype = 'U30')
+        for i in range(len(haps)) :
+            print('Writing IBD segments for chromosome ' + str(chroms[i]))
+            # Segments
+            if not args.unphased_impute :
+                ibd[i] = np.sum(ibd[i] , axis = 2)
+            _ = write_segs_from_matrix(ibd[i] ,
+                                       sibpairs ,
+                                       snp_ids[i] ,
+                                       positions[i] ,
+                                       maps[i] ,
+                                       chroms[i] ,
+                                       args.outprefix + 'chr_' + str(chroms[
+                                                                         i]) + gen_out_suf + '.segments.gz')
+            # Causal effects
+            if args.v_indir == 0 :
+                a_chr = a[snp_count :(snp_count + snp_ids[i].shape[0])]
+                a_chr_v1 = a_chr + np.random.normal(0 ,
+                                                    np.std(a_chr) ,
+                                                    a_chr.shape)
+                causal_out[snp_count :(snp_count + snp_ids[i].shape[0]) ,
+                :] = np.vstack((snp_ids[i] , alleles[i][: , 0] ,
+                                alleles[i][: , 1] , a_chr , a_chr_v1)).T
+                if i == 0 :
+                    causal_out = np.vstack((np.array(['SNP' , 'A1' , 'A2' ,
+                                                      'direct' ,
+                                                      'direct_v1']).reshape((1 ,
+                                                                             5)) ,
+                                            causal_out))
+            else :
+                a_chr = a[snp_count :(snp_count + snp_ids[i].shape[0]) , :]
+                causal_out[snp_count :(snp_count + snp_ids[i].shape[0]) ,
+                :] = np.vstack((snp_ids[i] , alleles[i][: , 0] ,
+                                alleles[i][: , 1] , a_chr[: , 0] ,
+                                a_chr[: , 1])).T
+                if i == 0 :
+                    causal_out = np.vstack((
+                            np.array(['SNP' , 'A1' , 'A2' , 'direct' ,
+                                      'indirect']).reshape((1 , 5)) ,
+                            causal_out))
+            snp_count += snp_ids[i].shape[0]  # count
 
-##
+        np.savetxt(args.outprefix + 'causal_effects' + gen_out_suf + '.txt' ,
+                   causal_out ,
+                   fmt = '%s')
+
 def main(args) :
-    pass
-
-    ##
-
     print('Simulating an initial generation by random-mating')
     print('Followed by ' + str(args.n_random) + ' generations of random-mating')
     print('Followed by ' + str(args.n_am) + ' generations of assortative mating')
@@ -244,6 +246,9 @@ def main(args) :
     gen_out_suf = ''
     par_gen_out_suf = '_par'
 
+    # force imputing the grandparental genotypes
+    args.impute = True
+
     save_phenotype_genotype(n_last ,
                             gen_out_suf ,
                             par_gen_out_suf ,
@@ -257,7 +262,8 @@ def main(args) :
                             haps ,
                             ibd ,
                             a ,
-                            args)
+                            causal_output = True ,
+                            args = args)
 
     # save phenotype genotype for the second last generation (parents)
     print('*** Parents Generation ***')
@@ -279,9 +285,9 @@ def main(args) :
                             haps ,
                             ibd ,
                             a ,
-                            args)
+                            causal_output = False ,
+                            args = args)
 
-##
 if __name__ == "__main__" :
     args1 = Args()
     main(args = args1)
