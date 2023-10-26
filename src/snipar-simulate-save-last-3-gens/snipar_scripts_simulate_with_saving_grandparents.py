@@ -2,75 +2,50 @@
 
     """
 
+import h5py
 import numpy as np
-import h5py , argparse
+from pysnptools.snpreader import Bed
+from pysnptools.snpreader import SnpData
 from snipar.ibd import write_segs_from_matrix
-from snipar.map import decode_map_from_pos
-from snipar.utilities import *
-from snipar.simulate import simulate_first_gen , forward_sim
-from pysnptools.snpreader import SnpData , Bed
-
-##
+from snipar.simulate import forward_sim
+from snipar.simulate import impute_all_fams
+from snipar.simulate import impute_all_fams_phased
+from snipar.simulate import simulate_first_gen
+from snipar.utilities import encode_str_array
 
 class Args :
     n_causal = 1000
     h2 = 0.5
     outprefix = './'
     nfam = 30 * 10 ** 3
+    impute = True
     n_random = 0
     n_am = 22
-    v_indir = None
-    r_dir_indir = 0.5
+    save_par_gts = True
+    unphased_impute = False
     r_par = 0.5
-    beta_vert = 0.5
+    v_indir = 0
+    r_dir_indir = None
+    beta_vert = 0
 
-args = Args()
-
-##
-def main(args) :
-    pass
-
-    ##
-
-    print('Simulating an initial generation by random-mating')
-    print('Followed by ' + str(args.n_random) + ' generations of random-mating')
-    print('Followed by ' + str(args.n_am) + ' generations of assortative mating')
-
-    unlinked = True  # because bgen arg is None
-
-    # simulate base generation
-    haps , maps , snp_ids , alleles , positions , chroms = simulate_first_gen(
-            args.nfam ,
-            args.n_causal ,
-            maf = None ,
-            min_maf = 0.05)
-
-    # Perform simulation with forward_sim
-    new_haps , haps , father_indices , mother_indices , ibd , ped , a , V = forward_sim(
-            haps ,
-            maps ,
-            args.n_random ,
-            args.n_am ,
-            unlinked ,
-            args.n_causal ,
-            args.h2 ,
-            v_indirect = args.v_indir ,
-            r_direct_indirect = args.r_dir_indir ,
-            r_y = args.r_par ,
-            beta_vert = args.beta_vert)
-
-    # Save variance components
-    print('Saving variance components to ' + args.outprefix + 'VCs.txt')
-    np.savetxt(args.outprefix + 'VCs.txt' , V , fmt = '%s')
-
-    # Save pedigree and fam files
-    print('Writing pedigree and fam files')
-    np.savetxt(args.outprefix + 'pedigree.txt' , ped , fmt = '%s')
-
-    n_last = ped[ped.shape[0] - 1 , 0].split('_')[0]
+def save_phenotype_genotype(n_last ,
+                            gen_out_suf ,
+                            par_gen_out_suf ,
+                            ped ,
+                            chroms ,
+                            snp_ids ,
+                            maps ,
+                            positions ,
+                            alleles ,
+                            new_haps ,
+                            haps ,
+                            ibd ,
+                            a ,
+                            args
+                            ) :
     last_gen = [x.split('_')[0] == n_last for x in ped[: , 0]]
     phen_out = ped[last_gen , :]
-    np.savetxt(args.outprefix + 'phenotype.txt' ,
+    np.savetxt(args.outprefix + 'phenotype' + gen_out_suf + '.txt' ,
                phen_out[: , [0 , 1 , 5]] ,
                fmt = '%s')
 
@@ -93,14 +68,17 @@ def main(args) :
                                                                   new_haps[
                                                                       i].shape[
                                                                       2])))
-        Bed.write(args.outprefix + 'chr_' + str(chroms[i]) + '.bed' ,
+        Bed.write(args.outprefix + 'chr_' + str(
+                chroms[i]) + gen_out_suf + '.bed' ,
                   gts_chr ,
                   count_A1 = True ,
                   _require_float32_64 = False)
-        np.savetxt(args.outprefix + 'chr_' + str(chroms[i]) + '.bim' ,
+        np.savetxt(args.outprefix + 'chr_' + str(
+                chroms[i]) + gen_out_suf + '.bim' ,
                    bim_i ,
                    fmt = '%s' ,
                    delimiter = '\t')
+
         if args.save_par_gts :
             par_gen = [x.split('_')[0] == str(int(n_last) - 1) for x in
                        ped[: , 0]]
@@ -115,18 +93,23 @@ def main(args) :
                                                                           haps[
                                                                               i].shape[
                                                                               2])))
-            Bed.write(args.outprefix + 'chr_' + str(chroms[i]) + '_par.bed' ,
+            Bed.write(args.outprefix + 'chr_' + str(
+                    chroms[i]) + par_gen_out_suf + '.bed' ,
                       par_gts_chr ,
                       count_A1 = True ,
                       _require_float32_64 = False)
             del par_gts_chr
-            np.savetxt(args.outprefix + 'chr_' + str(chroms[i]) + '_par.bim' ,
+
+            np.savetxt(args.outprefix + 'chr_' + str(
+                    chroms[i]) + par_gen_out_suf + '.bim' ,
                        bim_i ,
                        fmt = '%s' ,
                        delimiter = '\t')
+
         # Imputed parental genotypes
         if args.impute or args.unphased_impute :
             print('Imputing parental genotypes and saving')
+
             freqs = np.mean(gts_chr.val , axis = 0) / 2.0
             imp_ped = ped[last_gen , 0 :4]
             imp_ped = np.hstack((imp_ped , np.zeros((imp_ped.shape[0] , 2) ,
@@ -134,7 +117,7 @@ def main(args) :
             # Phased
             if args.impute :
                 hf = h5py.File(args.outprefix + 'phased_impute_chr_' + str(
-                        chroms[i]) + '.hdf5' , 'w')
+                        chroms[i]) + gen_out_suf + '.hdf5' , 'w')
                 phased_imp = impute_all_fams_phased(new_haps[i] ,
                                                     freqs ,
                                                     ibd[i])
@@ -148,10 +131,11 @@ def main(args) :
                 hf['pedigree'] = encode_str_array(imp_ped)
                 hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
                 hf.close()
+
             # Unphased
             if args.unphased_impute :
                 hf = h5py.File(args.outprefix + 'unphased_impute_chr_' + str(
-                        chroms[i]) + '.hdf5' , 'w')
+                        chroms[i]) + gen_out_suf + '.hdf5' , 'w')
                 ibd[i] = np.sum(ibd[i] , axis = 2)
                 imp = impute_all_fams(gts_chr , freqs , ibd[i])
                 hf['imputed_par_gts'] = imp
@@ -179,14 +163,14 @@ def main(args) :
         # Segments
         if not args.unphased_impute :
             ibd[i] = np.sum(ibd[i] , axis = 2)
-        segs = write_segs_from_matrix(ibd[i] ,
-                                      sibpairs ,
-                                      snp_ids[i] ,
-                                      positions[i] ,
-                                      maps[i] ,
-                                      chroms[i] ,
-                                      args.outprefix + 'chr_' + str(
-                                              chroms[i]) + '.segments.gz')
+        _ = write_segs_from_matrix(ibd[i] ,
+                                   sibpairs ,
+                                   snp_ids[i] ,
+                                   positions[i] ,
+                                   maps[i] ,
+                                   chroms[i] ,
+                                   args.outprefix + 'chr_' + str(chroms[
+                                                                     i]) + gen_out_suf + '.segments.gz')
         # Causal effects
         if args.v_indir == 0 :
             a_chr = a[snp_count :(snp_count + snp_ids[i].shape[0])]
@@ -210,8 +194,92 @@ def main(args) :
                         np.array(['SNP' , 'A1' , 'A2' , 'direct' ,
                                   'indirect']).reshape((1 , 5)) , causal_out))
         snp_count += snp_ids[i].shape[0]  # count
-    np.savetxt(args.outprefix + 'causal_effects.txt' , causal_out , fmt = '%s')
+    np.savetxt(args.outprefix + 'causal_effects' + gen_out_suf + '.txt' ,
+               causal_out ,
+               fmt = '%s')
+
+##
+def main(args) :
+    pass
+
+    ##
+
+    print('Simulating an initial generation by random-mating')
+    print('Followed by ' + str(args.n_random) + ' generations of random-mating')
+    print('Followed by ' + str(args.n_am) + ' generations of assortative mating')
+
+    unlinked = True  # because bgen arg is None
+
+    # simulate base generation
+    haps , maps , snp_ids , alleles , positions , chroms = simulate_first_gen(
+            args.nfam ,
+            args.n_causal ,
+            maf = None ,
+            min_maf = 0.05)
+
+    # Perform simulation with forward_sim
+    new_haps , haps , father_indices , mother_indices , ibd , ped , a , v = forward_sim(
+            haps ,
+            maps ,
+            args.n_random ,
+            args.n_am ,
+            unlinked ,
+            args.n_causal ,
+            args.h2 ,
+            v_indirect = args.v_indir ,
+            r_direct_indirect = args.r_dir_indir ,
+            r_y = args.r_par ,
+            beta_vert = args.beta_vert)
+
+    # Save variance components
+    print('Saving variance components to ' + args.outprefix + 'VCs.txt')
+    np.savetxt(args.outprefix + 'VCs.txt' , v , fmt = '%s')
+
+    # Save pedigree and fam files
+    print('Writing pedigree and fam files')
+    np.savetxt(args.outprefix + 'pedigree.txt' , ped , fmt = '%s')
+
+    # save phenotype genotype for the last generation
+    n_last = ped[ped.shape[0] - 1 , 0].split('_')[0]
+    gen_out_suf = ''
+    par_gen_out_suf = '_par'
+
+    save_phenotype_genotype(n_last ,
+                            gen_out_suf ,
+                            par_gen_out_suf ,
+                            ped ,
+                            chroms ,
+                            snp_ids ,
+                            maps ,
+                            positions ,
+                            alleles ,
+                            new_haps ,
+                            haps ,
+                            ibd ,
+                            a ,
+                            args)
+
+    # save phenotype genotype for the second last generation (parents)
+    n_last += -1
+    gen_out_suf = '_par'
+    par_gen_out_suf = '_gpar'
+
+    save_phenotype_genotype(n_last ,
+                            gen_out_suf ,
+                            par_gen_out_suf ,
+                            ped ,
+                            chroms ,
+                            snp_ids ,
+                            maps ,
+                            positions ,
+                            alleles ,
+                            new_haps ,
+                            haps ,
+                            ibd ,
+                            a ,
+                            args)
 
 ##
 if __name__ == "__main__" :
-    main(args = args)
+    args1 = Args()
+    main(args = args1)
