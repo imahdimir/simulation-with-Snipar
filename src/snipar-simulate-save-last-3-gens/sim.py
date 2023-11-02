@@ -26,14 +26,15 @@ from snipar.utilities import encode_str_array
 class Args :
     n_causal = 1000
     h2 = 0.5
-    outprefix = 'sim/'
     nfam = 30 * 10 ** 3
     n_random = 0
     n_am = 23
     save_par_gts = True
-    impute = True  # Imputed parental genotypes using phased gts
+    impute = True
     r_par = 0.5
     v_indir = 0
+
+    outprefix = 'sim/'
 
 def gen_next_generation_haps(unlinked , haps , maps , f_inds , m_inds) :
     """ Generate haplotypes of new generation """
