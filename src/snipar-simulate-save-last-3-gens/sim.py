@@ -277,7 +277,6 @@ def forward_sim(haps ,
                     np.corrcoef(Y_males , Y_females)[0 , 1] , 4)))
 
         else :
-            print('*** else ***')
             # Generate haplotypes of new generation
             haps = new_haps
             _f = gen_next_generation_haps
@@ -446,12 +445,15 @@ def main(args) :
             causal_out = np.zeros((a.shape[0] , 5) , dtype = 'U30')
 
         for i in range(len(haps)) :
+            print('gen: ' , gen_suf)
             print('Writing IBD segments for chromosome ' + str(chroms[i]))
             # Segments
-            if not args.unphased_impute :
-                ibd[i] = np.sum(ibd[i] , axis = 2)
+            ibd1 = ibd.copy()
 
-            _ = write_segs_from_matrix(ibd[i] ,
+            if not args.unphased_impute :
+                ibd1[i] = np.sum(ibd[i] , axis = 2)
+
+            _ = write_segs_from_matrix(ibd1[i] ,
                                        sibpairs ,
                                        snp_ids[i] ,
                                        positions[i] ,
