@@ -27,16 +27,13 @@ class Args :
     n_causal = 1000
     h2 = 0.5
     outprefix = 'sim/'
-    nfam = 30  # * 10 ** 3
+    nfam = 30 * 10 ** 3
     n_random = 0
     n_am = 23
     save_par_gts = True
     impute = True  # Imputed parental genotypes using phased gts
-    unphased_impute = False
     r_par = 0.5
     v_indir = 0
-    r_dir_indir = None
-    beta_vert = 0
 
 def gen_next_generation_haps(unlinked , haps , maps , f_inds , m_inds) :
     """ Generate haplotypes of new generation """
