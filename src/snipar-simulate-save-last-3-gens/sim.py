@@ -14,7 +14,6 @@ from snipar.simulate import compute_phenotype_indirect
 from snipar.simulate import compute_phenotype_vert
 from snipar.simulate import compute_vcomps
 from snipar.simulate import create_ped_output
-from snipar.simulate import impute_all_fams
 from snipar.simulate import impute_all_fams_phased
 from snipar.simulate import produce_next_gen
 from snipar.simulate import produce_next_gen_unlinked
@@ -29,8 +28,6 @@ class Args :
     nfam = 30 * 10 ** 3
     n_random = 0
     n_am = 23
-    save_par_gts = True
-    impute = True
     r_par = 0.5
     v_indir = 0
 
