@@ -277,6 +277,7 @@ def forward_sim(haps ,
                     np.corrcoef(Y_males , Y_females)[0 , 1] , 4)))
 
         else :
+            print('*** else ***')
             # Generate haplotypes of new generation
             haps = new_haps
             _f = gen_next_generation_haps
@@ -297,6 +298,7 @@ def main(args) :
 
     unlinked = True  # since bgen arg is None
 
+    ##
     # Simulate 1st gen
     haps , maps , snp_ids , alleles , positions , chroms = simulate_first_gen(
             args.nfam ,
@@ -304,6 +306,7 @@ def main(args) :
             maf = None ,
             min_maf = 0.05)
 
+    ##
     # Perform simulation
     haps_gpar , haps_par , ibd_par , a_par , haps_off , ibd_off , a_off , ped , V = forward_sim(
             haps ,
@@ -319,20 +322,27 @@ def main(args) :
             beta_vert = args.beta_vert)
 
     ##
+    # rm empty rows of ped
+    print('ped: \n' , ped)
+
+    ped = ped[~np.all(ped == '' , axis = 1)]
+
+    print('ped: \n' , ped)
+
+    ##
     print('Saving variance components')
     np.savetxt(args.outprefix + 'VCs.txt' , V , fmt = '%s')
 
     ##
     print('Writing pedigree')
     np.savetxt(args.outprefix + 'pedigree.txt' , ped , fmt = '%s')
-    print(ped[-1 : -5 , :])
 
     ##
     print('saving phenotypes of offspring and parents generations')
 
     # offspring
     n_last = ped[ped.shape[0] - 1 , 0].split('_')[0]
-    print(n_last)
+    print('n_last: ' , n_last)
 
     last_gen = [x.split('_')[0] == n_last for x in ped[: , 0]]
     phen_out = ped[last_gen , :]
@@ -356,9 +366,9 @@ def main(args) :
     print('Saving genotypes for last 3 generations')
 
     _dc = {
-            (last_gen , haps_off , '' , ibd_off)    : None ,
-            (par_gen , haps_par , '_par' , ibd_par) : None ,
-            (gpar_gen , haps_gpar , '_gpar' , None) : None ,
+            0 : (last_gen , haps_off , '' , ibd_off) ,
+            1 : (par_gen , haps_par , '_par' , ibd_par) ,
+            2 : (gpar_gen , haps_gpar , '_gpar' , None) ,
             }
 
     for i in range(len(haps_off)) :
@@ -368,7 +378,7 @@ def main(args) :
                            snp_ids[i] , maps[i] , positions[i] ,
                            alleles[i][: , 0] , alleles[i][: , 1])).T
 
-        for gen , gen_haps , gen_suf , ibd in _dc.keys() :
+        for gen , gen_haps , gen_suf , ibd in _dc.values() :
             gts_chr = SnpData(iid = ped[gen , 0 :2] ,
                               sid = snp_ids[i] ,
                               pos = bim_i[: , [0 , 2 , 3]] ,
@@ -437,11 +447,11 @@ def main(args) :
     print('Write IBD segments')
 
     _dc = {
-            (last_gen , a_off , haps_off , ibd_off , '')    : None ,
-            (par_gen , a_par , haps_par , ibd_par , '_par') : None ,
+            0 : (last_gen , a_off , haps_off , ibd_off , '') ,
+            1 : (par_gen , a_par , haps_par , ibd_par , '_par') ,
             }
 
-    for gen , a , haps , ibd , gen_suf in _dc.keys() :
+    for gen , a , haps , ibd , gen_suf in _dc.values() :
 
         snp_count = 0
         sibpairs = ped[gen , 1]
