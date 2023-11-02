@@ -411,11 +411,30 @@ def main(args) :
                                                     dtype = bool)))
 
             print('phased')
+
             hf = h5py.File(args.outprefix + 'phased_impute_chr_' + str(
                     chroms[i]) + gen_suf + '.hdf5' , 'w')
             phased_imp = impute_all_fams_phased(gen_haps[i] , freqs , ibd[i])
             hf['imputed_par_gts'] = phased_imp
             del phased_imp
+            hf['bim_values'] = encode_str_array(bim_i)
+            hf['bim_columns'] = encode_str_array(np.array(['rsid' , 'map' ,
+                                                           'position' ,
+                                                           'allele1' ,
+                                                           'allele2']))
+            hf['pedigree'] = encode_str_array(imp_ped)
+            hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
+            hf.close()
+
+            print('unphased')
+
+            hf = h5py.File(args.outprefix + 'unphased_impute_chr_' + str(
+                    chroms[i]) + gen_suf + '.hdf5' , 'w')
+            ibd1 = ibd.copy()
+            ibd1[i] = np.sum(ibd[i] , axis = 2)
+            imp = impute_all_fams(gts_chr , freqs , ibd1[i])
+            hf['imputed_par_gts'] = imp
+            del imp
             hf['bim_values'] = encode_str_array(bim_i)
             hf['bim_columns'] = encode_str_array(np.array(['rsid' , 'map' ,
                                                            'position' ,
