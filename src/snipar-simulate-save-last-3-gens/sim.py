@@ -25,231 +25,330 @@ from snipar.utilities import encode_str_array
 class Args :
     n_causal = 1000
     h2 = 0.5
+    outprefix = 'sim/'
     nfam = 30 * 10 ** 3
     n_random = 0
-    n_am = 23
+    n_am = 22
+    save_par_gts = True
+    impute = True
+    unphased_impute = False
     r_par = 0.5
     v_indir = 0
+    r_dir_indir = None
+    beta_vert = 0
 
-    outprefix = 'sim/'
+class Population :
+    unlinked = None
+    haps = None
+    new_haps = None
+    ibd = None
+    maps = None
+    snp_ids = None
+    alleles = None
+    positions = None
+    chroms = None
+    f_inds = None
+    m_inds = None
+    y_ma = None
+    y_fe = None
+    y_m = None
+    y_p = None
+    total_matings = None
+    pedcols = None
+    ped = None
+    vcols = None
+    v = None
+    a = None
+    causal = None
+    h2 = None
+    h2_total = None
+    delta_p = None
+    delta_m = None
+    g_ma = None
+    g_fe = None
+    eta_p = None
+    eta_m = None
+    eta_ma = None
+    eta_fe = None
 
-def gen_next_generation_haps(unlinked , haps , maps , f_inds , m_inds) :
+def simulate_1st_gen(p , ar , maf , min_maf) :
+    """ Simulate first generation """
+
+    _f = simulate_first_gen
+    _o = _f(ar.nfam , ar.n_causal , maf = maf , min_maf = min_maf)
+
+    p.haps , p.maps , p.snp_ids , p.alleles , p.positions , p.chroms = _o
+
+    return p
+
+def gen_next_gen_haps(p: Population) :
     """ Generate haplotypes of new generation """
-    new_haps = []
-    ibd = []
-    for chro in range(0 , len(haps)) :
-        in3 = haps[chro][: , 0 , : , :]
-        in4 = haps[chro][: , 1 , : , :]
+    p.new_haps = []
+    p.ibd = []
 
-        if unlinked :
-            _fu = produce_next_gen_unlinked
-            new_haps_chr , ibd_chr = _fu(f_inds , m_inds , in3 , in4)
+    for cho in range(len(p.haps)) :
+        in3 = p.haps[cho][: , 0 , : , :]
+        in4 = p.haps[cho][: , 1 , : , :]
+
+        if p.unlinked :
+            _f = produce_next_gen_unlinked
+            new_haps_chr , ibd_chr = _f(p.f_inds , p.m_inds , in3 , in4)
         else :
-            _fu = produce_next_gen
-            in5 = maps[chro]
-            new_haps_chr , ibd_chr = _fu(f_inds , m_inds , in3 , in4 , in5)
+            in5 = p.maps[cho]
+            _f = produce_next_gen
+            new_haps_chr , ibd_chr = _f(p.f_inds , p.m_inds , in3 , in4 , in5)
 
-        new_haps.append(new_haps_chr)
-        ibd.append(ibd_chr)
+        p.new_haps.append(new_haps_chr)
+        p.ibd.append(ibd_chr)
 
-    return new_haps , ibd
+    return p
 
-def prepare_v_and_ped(v_indirect , total_matings , nfam) :
-    # Pedigree columns
-    pedcols = ['FID' , 'IID' , 'FATHER_ID' , 'MOTHER_ID' , 'SEX' , 'PHENO' ,
-               'FATHER_PHENO' , 'MOTHER_PHENO' , 'DIRECT' , 'FATHER_DIRECT' ,
-               'MOTHER_DIRECT']
+def prepare_v_and_ped(p , ar) :
+    pedcols = {
+            'FID'           : None ,
+            'IID'           : None ,
+            'FATHER_ID'     : None ,
+            'MOTHER_ID'     : None ,
+            'SEX'           : None ,
+            'PHENO'         : None ,
+            'FATHER_PHENO'  : None ,
+            'MOTHER_PHENO'  : None ,
+            'DIRECT'        : None ,
+            'FATHER_DIRECT' : None ,
+            'MOTHER_DIRECT' : None ,
+            }
+    p.pedcols = list(pedcols.keys())
 
-    # Record variance component evolution and pedigree
-    if v_indirect == 0 :
-        V = np.zeros((total_matings + 1 , 3))
-        V_header = np.array(['v_g' , 'v_y' , 'r_delta']).reshape((1 , 3))
+    if ar.v_indir == 0 :
+        p.v = np.zeros((p.total_matings , 3))
+        p.vcols = np.array(['v_g' , 'v_y' , 'r_delta']).reshape((1 , 3))
+
     else :
-        V = np.zeros((total_matings + 1 , 8))
-        V_header = np.array(['v_g' , 'v_y' , 'r_delta' , 'v_eg' , 'c_ge' ,
-                             'r_eta' , 'r_delta_eta_c' ,
-                             'r_delta_eta_tau']).reshape((1 , 8))
-        pedcols += ['INDIRECT' , 'FATHER_INDIRECT' , 'MOTHER_INDIRECT']
+        p.v = np.zeros((p.total_matings , 8))
+        p.vcols = np.array(['v_g' , 'v_y' , 'r_delta' , 'v_eg' , 'c_ge' ,
+                            'r_eta' , 'r_delta_eta_c' ,
+                            'r_delta_eta_tau']).reshape((1 , 8))
+        p.pedcols += ['INDIRECT' , 'FATHER_INDIRECT' , 'MOTHER_INDIRECT']
 
-    V[:] = np.nan
+    # variance components
+    p.v[:] = np.nan
 
-    # Record full pedigree
-    pedcols = np.array(pedcols)
-    ped = np.zeros((nfam * 2 * (total_matings + 1) , pedcols.shape[0]) ,
-                   dtype = 'U30')
+    # pedigree
+    p.pedcols = np.array(p.pedcols)
+    nro = p.total_matings * 2 * ar.nfam
+    p.ped = np.zeros((nro , p.pedcols.shape[0]) , dtype = 'U30')
 
-    return pedcols , ped , V , V_header
+    return p
 
-def forward_sim(haps ,
-                maps ,
-                ngen_random ,
-                ngen_am ,
-                unlinked ,
-                n_causal ,
-                h2 ,
-                v_indirect = 0 ,
-                r_direct_indirect = 0 ,
-                beta_vert = 0 ,
-                r_y = None
-                ) :
+def sim_causal_effect_in_1st_gen_no_indirect_effect(p , ar) :
+    # Simulate direct effect component
+    p.a , p.causal , p.h2 = simulate_effects(p.new_haps , ar.n_causal , ar.h2)
+
+    # Compute parental phenotype
+    _f = compute_phenotype
+    _o = _f(p.haps , p.causal , p.a , 1 - p.h2)
+    p.delta_p , p.delta_m , p.y_p , p.y_m = _o
+
+    p.delta_p , p.delta_m = p.delta_p[p.f_inds] , p.delta_m[p.m_inds]
+    p.y_p , p.y_m = p.y_p[p.f_inds] , p.y_m[p.m_inds]
+
+    _f = compute_phenotype
+    _o = _f(p.new_haps , p.causal , p.a , 1 - p.h2)
+    p.g_ma , p.g_fe , p.y_ma , p.y_fe = _o
+
+    return p
+
+def sim_causal_effect_in_1st_gen_wt_indirect_effect(p , ar) :
+    # Compute indirect effect component
+    _f = simulate_effects
+    p.a , p.causal , p.h2_total = _f(p.new_haps ,
+                                     ar.n_causal ,
+                                     ar.h2 ,
+                                     old_haps = p.haps ,
+                                     v_indirect = ar.v_indir ,
+                                     r_direct_indirect = ar.r_dir_indir ,
+                                     father_indices = p.f_inds ,
+                                     mother_indices = p.m_inds)
+
+    # Compute parental phenotype
+    _o = compute_phenotype(p.haps , p.causal , p.a[: , 0] , 1 - ar.h2)
+    p.delta_p , p.delta_m , p.y_p , p.y_m = _o
+
+    p.y_p , p.y_m = p.y_p[p.f_inds] , p.y_m[p.m_inds]
+
+    _o = compute_phenotype_indirect(p.new_haps ,
+                                    p.haps ,
+                                    p.f_inds ,
+                                    p.m_inds ,
+                                    p.causal ,
+                                    p.a[: , 0] ,
+                                    p.a[: , 1] ,
+                                    1 - p.h2_total)
+    p.g_ma , p.g_fe , p.y_ma , p.y_fe = _o[:4]
+    p.eta_p , p.eta_m , p.delta_p , p.delta_m = _o[4 :]
+
+    _f = compute_genetic_component
+    p.eta_ma , p.eta_fe = _f(p.new_haps , p.causal , p.a[: , 1])
+
+    return p
+
+def sim_generations_wt_no_indir(p , ar) :
+    for gen in range(p.total_matings) :
+
+        p.delta_p , p.delta_m = p.g_ma[p.f_inds] , p.g_fe[p.m_inds]
+        p.y_p , p.y_m = p.y_ma[p.f_inds] , p.y_fe[p.m_inds]
+
+        print('Computing phenotypes')
+        if ar.beta_vert != 0 :
+            _f = compute_phenotype_vert
+            p.g_ma , p.g_fe , p.y_ma , p.y_fe = _f(p.new_haps ,
+                                                   p.causal ,
+                                                   p.a ,
+                                                   1 - p.h2 ,
+                                                   ar.beta_vert ,
+                                                   p.y_p ,
+                                                   p.y_m)
+        else :
+            _f = compute_phenotype
+            p.g_ma , p.g_fe , p.y_ma , p.y_fe = _f(p.new_haps ,
+                                                   p.causal ,
+                                                   p.a ,
+                                                   1 - p.h2)
+
+        p = rec_v_and_ped_wt_no_indir(p , ar , gen)
+        p = mate(p , ar , gen)
+
+        p.haps = p.new_haps
+        p = gen_next_gen_haps(p)
+
+def sim_generations_wt_indir(p , ar) :
+    for gen in range(p.total_matings) :
+        print('Computing phenotypes')
+        _o = compute_phenotype_indirect(p.new_haps ,
+                                        p.haps ,
+                                        p.f_inds ,
+                                        p.m_inds ,
+                                        p.causal ,
+                                        p.a[: , 0] ,
+                                        p.a[: , 1] ,
+                                        1 - p.h2_total)
+
+        p.g_ma , p.g_fe , p.y_ma , p.y_fe = _o[:4]
+        p.eta_p , p.eta_m , p.delta_p , p.delta_m = _o[4 :]
+
+        _o = compute_genetic_component(p.new_haps , p.causal , p.a[: , 1])
+        p.eta_ma , p.eta_fe = _o
+
+        p = rec_v_and_ped_wt_indir(p , ar , gen)
+        p = mate(p , ar , gen)
+
+        p.haps = p.new_haps
+        p = gen_next_gen_haps(p)
+
+def rec_v_and_ped_wt_no_indir(p , ar , gen) :
+    p.v[gen , :] = compute_vcomps(p.g_ma ,
+                                  p.g_fe ,
+                                  p.y_ma ,
+                                  p.y_fe ,
+                                  delta_p = p.delta_p ,
+                                  delta_m = p.delta_m)
+
+    ro_strt = gen * 2 * ar.nfam
+    ro_end = (gen + 1) * 2 * ar.nfam
+
+    _f = create_ped_output
+    p.ped[ro_strt :ro_end , :] = _f(p.g_ma ,
+                                    p.g_fe ,
+                                    p.y_ma ,
+                                    p.y_fe ,
+                                    p.y_p ,
+                                    p.y_m ,
+                                    p.delta_p ,
+                                    p.delta_m ,
+                                    father_indices = p.f_inds ,
+                                    mother_indices = p.m_inds ,
+                                    gen = gen + 1 ,
+                                    header = False)
+
+    return p
+
+def rec_v_and_ped_wt_indir(p , ar , gen) :
+    p.v[gen , :] = compute_vcomps(p.g_ma ,
+                                  p.g_fe ,
+                                  p.y_ma ,
+                                  p.y_fe ,
+                                  delta_p = p.delta_p ,
+                                  delta_m = p.delta_m ,
+                                  v_indirect = ar.v_indir ,
+                                  eta_p = p.eta_p ,
+                                  eta_m = p.eta_m)
+
+    ro_strt = gen * 2 * ar.nfam
+    ro_end = (gen + 1) * 2 * ar.nfam
+
+    _f = create_ped_output
+    p.ped[ro_strt :ro_end , :] = _f(p.g_ma ,
+                                    p.g_fe ,
+                                    p.y_ma ,
+                                    p.y_fe ,
+                                    p.y_p ,
+                                    p.y_m ,
+                                    p.delta_p ,
+                                    p.delta_m ,
+                                    eta_males = p.eta_ma ,
+                                    eta_females = p.eta_fe ,
+                                    eta_p = p.eta_p ,
+                                    eta_m = p.eta_m ,
+                                    father_indices = p.f_inds ,
+                                    mother_indices = p.m_inds ,
+                                    gen = gen + 1 ,
+                                    header = False)
+
+    return p
+
+def mate_randomly(p , ar) :
+    print('Mating Randomly')
+    p.f_inds = random_mating_indices(ar.nfam)
+    p.m_inds = random_mating_indices(ar.nfam)
+    return p
+
+def mate_assortatively(p , ar) :
+    print('Matching assortatively')
+    p.f_inds , p.m_inds = am_indices(p.y_ma , p.y_fe , ar.r_par)
+    return p
+
+def mate(p , ar , gen) :
+    print('Mating ' + str(gen + 2))
+    if gen < ar.n_random :
+        p = mate_randomly(p , ar)
+    else :
+        p = mate_assortatively(p , ar)
+    return p
+
+def forward_sim(p , ar) :
     """ Simulate population """
 
-    nfam = haps[0].shape[0]
-
     print('Generating first generation by random-mating')
-    # father and monther indices
-    f_inds = random_mating_indices(nfam)
-    m_inds = random_mating_indices(nfam)
+    p = mate_randomly(p , ar)
 
     # Generate haplotypes of new generation
-    _f = gen_next_generation_haps
-    new_haps , ibd = _f(unlinked , haps , maps , f_inds , m_inds)
+    p = gen_next_gen_haps(p)
 
-    # Matings
-    total_matings = ngen_random + ngen_am
+    # total matings after first gen of random mating
+    p.total_matings = ar.n_random + ar.n_am
 
-    _f = prepare_v_and_ped
-    pedcols , ped , V , V_header = _f(v_indirect , total_matings , nfam)
+    p = prepare_v_and_ped(p , ar)
 
-    # Count generations
-    a_count = 0
+    if ar.v_indir == 0 :
+        p = sim_causal_effect_in_1st_gen_no_indirect_effect(p , ar)
+        sim_generations_wt_no_indir(p , ar)
+
+    else :
+        p = sim_causal_effect_in_1st_gen_wt_indirect_effect(p , ar)
+        sim_generations_wt_indir(p , ar)
 
     # Simulate ngen_random generations of random-mating then ngen_am generations of assortative mating
-    for gen in range(0 , total_matings) :
-        if v_indirect == 0 :
-            if a_count == 0 :
-                # Simulate direct effect component
-                a , causal , h2 = simulate_effects(new_haps , n_causal , h2)
-                # Compute parental phenotype
-                delta_p , delta_m , Y_p , Y_m = compute_phenotype(haps ,
-                                                                  causal ,
-                                                                  a ,
-                                                                  1 - h2)
-                delta_p , delta_m , Y_p , Y_m = delta_p[f_inds] , delta_m[
-                    m_inds] , Y_p[f_inds] , Y_m[m_inds]
-            else :
-                delta_p , delta_m , Y_p , Y_m = G_males[f_inds] , G_females[
-                    m_inds] , Y_males[f_inds] , Y_females[f_inds]
-            # Compute phenotypes
-            print('Computing phenotypes')
-            if np.abs(beta_vert) > 0 and a_count > 0 :
-                G_males , G_females , Y_males , Y_females = compute_phenotype_vert(
-                        new_haps ,
-                        causal ,
-                        a ,
-                        1 - h2 ,
-                        beta_vert ,
-                        Y_p ,
-                        Y_m)
-            else :
-                G_males , G_females , Y_males , Y_females = compute_phenotype(
-                        new_haps ,
-                        causal ,
-                        a ,
-                        1 - h2)
-        else :
-            # Compute with indirect effects
-            if a_count == 0 :
-                # Compute indirect effect component
-                a , causal , h2_total = simulate_effects(new_haps ,
-                                                         n_causal ,
-                                                         h2 ,
-                                                         old_haps = haps ,
-                                                         v_indirect = v_indirect ,
-                                                         r_direct_indirect = r_direct_indirect ,
-                                                         father_indices = f_inds ,
-                                                         mother_indices = m_inds)
-                # Compute parental phenotype
-                delta_p , delta_m , Y_p , Y_m = compute_phenotype(haps ,
-                                                                  causal ,
-                                                                  a[: , 0] ,
-                                                                  1 - h2)
-                Y_p , Y_m = Y_p[f_inds] , Y_m[m_inds]
-            # Compute phenotype
-            print('Computing phenotypes')
-            G_males , G_females , Y_males , Y_females , eta_p , eta_m , delta_p , delta_m = compute_phenotype_indirect(
-                    new_haps ,
-                    haps ,
-                    f_inds ,
-                    m_inds ,
-                    causal ,
-                    a[: , 0] ,
-                    a[: , 1] ,
-                    1 - h2_total)
-            # Indirect effect component generation
-            eta_males , eta_females = compute_genetic_component(new_haps ,
-                                                                causal ,
-                                                                a[: , 1])
-        # Record variance components
-        # Final offspring generation variance components
-        if v_indirect == 0 :
-            V[a_count , :] = compute_vcomps(G_males ,
-                                            G_females ,
-                                            Y_males ,
-                                            Y_females ,
-                                            delta_p = delta_p ,
-                                            delta_m = delta_m)
-        else :
-            V[a_count , :] = compute_vcomps(G_males ,
-                                            G_females ,
-                                            Y_males ,
-                                            Y_females ,
-                                            delta_p = delta_p ,
-                                            delta_m = delta_m ,
-                                            v_indirect = v_indirect ,
-                                            eta_p = eta_p ,
-                                            eta_m = eta_m)
-        # Record pedigree
-        if v_indirect == 0 :
-            ped[(a_count * 2 * nfam) :((a_count + 1) * 2 * nfam) ,
-            :] = create_ped_output(G_males ,
-                                   G_females ,
-                                   Y_males ,
-                                   Y_females ,
-                                   Y_p ,
-                                   Y_m ,
-                                   delta_p ,
-                                   delta_m ,
-                                   father_indices = f_inds ,
-                                   mother_indices = m_inds ,
-                                   gen = a_count + 1 ,
-                                   header = False)
-        else :
-            ped[(a_count * 2 * nfam) :((a_count + 1) * 2 * nfam) ,
-            :] = create_ped_output(G_males ,
-                                   G_females ,
-                                   Y_males ,
-                                   Y_females ,
-                                   Y_p ,
-                                   Y_m ,
-                                   delta_p ,
-                                   delta_m ,
-                                   eta_males = eta_males ,
-                                   eta_females = eta_females ,
-                                   eta_p = eta_p ,
-                                   eta_m = eta_m ,
-                                   father_indices = f_inds ,
-                                   mother_indices = m_inds ,
-                                   gen = a_count + 1 ,
-                                   header = False)
-        a_count += 1
-
-        # Match current generation into parent-pairs for next generation
-        print('Mating ' + str(gen + 2))
-        # Random mating
-        if gen < ngen_random :
-            print('Matching randomly')
-            f_inds = random_mating_indices(nfam)
-            m_inds = random_mating_indices(nfam)
-        # Assortative mating
-        if gen >= ngen_random :
-            # Match assortatively
-            print('Matching assortatively')
-            f_inds , m_inds = am_indices(Y_males , Y_females , r_y)
-            print('Parental phenotypic correlation: ' + str(round(
-                    np.corrcoef(Y_males[f_inds] , Y_females[m_inds])[0 , 1] ,
-                    4)))
-
+    for gen in range(total_matings) :
         if gen == total_matings - 1 - 2 :
             print('*** gpar gen ***')
             haps_gpar = new_haps
@@ -258,62 +357,50 @@ def forward_sim(haps ,
             print('*** par gen ***')
             haps_par = new_haps
             ibd_par = ibd
-            a_par = a
 
         elif gen == total_matings - 1 :
             print('*** offspring gen ***')
             haps_off = new_haps
             ibd_off = ibd
-            a_off = a
-
-            print('Sibling genotypic correlation: ' + str(round(
-                    np.corrcoef(G_males , G_females)[0 , 1] , 4)))
-            print('Sibling phenotypic correlation: ' + str(round(
-                    np.corrcoef(Y_males , Y_females)[0 , 1] , 4)))
 
         else :
             # Generate haplotypes of new generation
             haps = new_haps
-            _f = gen_next_generation_haps
+            _f = gen_next_gen_haps
             new_haps , ibd = _f(unlinked , haps , maps , f_inds , m_inds)
 
-    V = np.vstack((V_header , V))
+    v = np.vstack((v_header , v))
     ped = np.vstack((pedcols , ped))
 
-    return haps_gpar , haps_par , ibd_par , a_par , haps_off , ibd_off , a_off , ped , V
+    return haps_gpar , haps_par , ibd_par , haps_off , ibd_off , a , ped , v
 
-def main(args) :
-    pass
-
-    ##
+def main(ar) :
     print('Simulating an initial generation by random-mating')
-    print('Followed by ' + str(args.n_random) + ' generations of random-mating')
-    print('Followed by ' + str(args.n_am) + ' generations of assortative mating')
-
-    unlinked = True  # since bgen arg is None
+    print('Followed by ' + str(ar.n_random) + ' generations of random-mating')
+    print('Followed by ' + str(ar.n_am) + ' generations of assortative mating')
 
     ##
-    # Simulate 1st gen
-    haps , maps , snp_ids , alleles , positions , chroms = simulate_first_gen(
-            args.nfam ,
-            args.n_causal ,
-            maf = None ,
-            min_maf = 0.05)
+    p = Population()
+    p.unlinked = True  # since bgen arg is None
+
+    ##
+    p = simulate_1st_gen(p , ar , maf = None , min_maf = .05)
 
     ##
     # Perform simulation
     haps_gpar , haps_par , ibd_par , a_par , haps_off , ibd_off , a_off , ped , V = forward_sim(
             haps ,
             maps ,
-            args.n_random ,
-            args.n_am ,
+            ar.n_random ,
+            ar.n_am ,
             unlinked ,
-            args.n_causal ,
-            args.h2 ,
-            v_indirect = args.v_indir ,
-            r_direct_indirect = args.r_dir_indir ,
-            r_y = args.r_par ,
-            beta_vert = args.beta_vert)
+            ar.n_causal ,
+            ar.h2 ,
+            args = ar ,
+            v_indirect = ar.v_indir ,
+            r_direct_indirect = ar.r_dir_indir ,
+            beta_vert = ar.beta_vert ,
+            r_y = ar.r_par)
 
     ##
     # rm empty rows of ped
@@ -325,11 +412,11 @@ def main(args) :
 
     ##
     print('Saving variance components')
-    np.savetxt(args.outprefix + 'VCs.txt' , V , fmt = '%s')
+    np.savetxt(ar.outprefix + 'VCs.txt' , V , fmt = '%s')
 
     ##
     print('Writing pedigree')
-    np.savetxt(args.outprefix + 'pedigree.txt' , ped , fmt = '%s')
+    np.savetxt(ar.outprefix + 'pedigree.txt' , ped , fmt = '%s')
 
     ##
     print('saving phenotypes of offspring and parents generations')
@@ -340,7 +427,7 @@ def main(args) :
 
     last_gen = [x.split('_')[0] == n_last for x in ped[: , 0]]
     phen_out = ped[last_gen , :]
-    np.savetxt(args.outprefix + 'phenotype.txt' ,
+    np.savetxt(ar.outprefix + 'phenotype.txt' ,
                phen_out[: , [0 , 1 , 5]] ,
                fmt = '%s')
 
@@ -348,7 +435,7 @@ def main(args) :
     n_par = str(int(n_last) - 1)
     par_gen = [x.split('_')[0] == n_par for x in ped[: , 0]]
     phen_par = ped[par_gen , :]
-    np.savetxt(args.outprefix + 'phenotype_par.txt' ,
+    np.savetxt(ar.outprefix + 'phenotype_par.txt' ,
                phen_par[: , [0 , 1 , 5]] ,
                fmt = '%s')
 
@@ -384,13 +471,13 @@ def main(args) :
                                                                       gen_haps[
                                                                           i].shape[
                                                                           2])))
-            Bed.write(args.outprefix + 'chr_' + str(
+            Bed.write(ar.outprefix + 'chr_' + str(
                     chroms[i]) + gen_suf + '.bed' ,
                       gts_chr ,
                       count_A1 = True ,
                       _require_float32_64 = False)
 
-            np.savetxt(args.outprefix + 'chr_' + str(
+            np.savetxt(ar.outprefix + 'chr_' + str(
                     chroms[i]) + gen_suf + '.bim' ,
                        bim_i ,
                        fmt = '%s' ,
@@ -407,7 +494,7 @@ def main(args) :
 
             print('phased')
 
-            hf = h5py.File(args.outprefix + 'phased_impute_chr_' + str(
+            hf = h5py.File(ar.outprefix + 'phased_impute_chr_' + str(
                     chroms[i]) + gen_suf + '.hdf5' , 'w')
             phased_imp = impute_all_fams_phased(gen_haps[i] , freqs , ibd[i])
             hf['imputed_par_gts'] = phased_imp
@@ -420,6 +507,8 @@ def main(args) :
             hf['pedigree'] = encode_str_array(imp_ped)
             hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
             hf.close()
+
+    del gts_chr
 
     ##
     print('Write IBD segments')
@@ -435,7 +524,7 @@ def main(args) :
         sibpairs = ped[gen , 1]
         sibpairs = sibpairs.reshape((int(sibpairs.shape[0] / 2) , 2))
 
-        if args.v_indir == 0 :
+        if ar.v_indir == 0 :
             causal_out = np.zeros((a.shape[0] , 5) , dtype = 'U30')
         else :
             causal_out = np.zeros((a.shape[0] , 5) , dtype = 'U30')
@@ -446,7 +535,7 @@ def main(args) :
             # Segments
             ibd1 = ibd.copy()
 
-            if not args.unphased_impute :
+            if not ar.unphased_impute :
                 ibd1[i] = np.sum(ibd[i] , axis = 2)
 
             _ = write_segs_from_matrix(ibd1[i] ,
@@ -455,10 +544,12 @@ def main(args) :
                                        positions[i] ,
                                        maps[i] ,
                                        chroms[i] ,
-                                       args.outprefix + 'chr_' + str(chroms[
-                                                                         i]) + gen_suf + '.segments.gz')
+                                       ar.outprefix + 'chr_' + str(chroms[
+                                                                       i]) + gen_suf + '.segments.gz')
+            del ibd1
+
             # Causal effects
-            if args.v_indir == 0 :
+            if ar.v_indir == 0 :
                 a_chr = a[snp_count :(snp_count + snp_ids[i].shape[0])]
                 a_chr_v1 = a_chr + np.random.normal(0 ,
                                                     np.std(a_chr) ,
@@ -485,10 +576,10 @@ def main(args) :
                             causal_out))
             snp_count += snp_ids[i].shape[0]
 
-        np.savetxt(args.outprefix + 'causal_effects' + gen_suf + '.txt' ,
+        np.savetxt(ar.outprefix + 'causal_effects' + gen_suf + '.txt' ,
                    causal_out ,
                    fmt = '%s')
 
 if __name__ == "__main__" :
     args1 = Args()
-    main(args = args1)
+    main(ar = args1)
