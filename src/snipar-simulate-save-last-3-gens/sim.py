@@ -70,6 +70,8 @@ class Population :
     eta_m = None
     eta_ma = None
     eta_fe = None
+    ibd_par = None
+    haps_gpar = None
 
 def simulate_1st_gen(p , ar , maf , min_maf) :
     """ Simulate first generation """
@@ -140,7 +142,7 @@ def prepare_v_and_ped(p , ar) :
 
     return p
 
-def sim_causal_effect_in_1st_gen_no_indirect_effect(p , ar) :
+def sim_causal_effect_in_1st_gen_wt_no_indir(p , ar) :
     # Simulate direct effect component
     p.a , p.causal , p.h2 = simulate_effects(p.new_haps , ar.n_causal , ar.h2)
 
@@ -152,13 +154,18 @@ def sim_causal_effect_in_1st_gen_no_indirect_effect(p , ar) :
     p.delta_p , p.delta_m = p.delta_p[p.f_inds] , p.delta_m[p.m_inds]
     p.y_p , p.y_m = p.y_p[p.f_inds] , p.y_m[p.m_inds]
 
-    _f = compute_phenotype
-    _o = _f(p.new_haps , p.causal , p.a , 1 - p.h2)
-    p.g_ma , p.g_fe , p.y_ma , p.y_fe = _o
+    p = compute_phenotype_no_indir_no_beta_vert(p)
+
+    p = rec_v_and_ped_wt_no_indir(p , ar , gen = 0)
 
     return p
 
-def sim_causal_effect_in_1st_gen_wt_indirect_effect(p , ar) :
+def compute_phenotype_no_indir_no_beta_vert(p) :
+    _o = compute_phenotype(p.new_haps , p.causal , p.a , 1 - p.h2)
+    p.g_ma , p.g_fe , p.y_ma , p.y_fe = _o
+    return p
+
+def sim_causal_effect_in_1st_gen_wt_indir(p , ar) :
     # Compute indirect effect component
     _f = simulate_effects
     p.a , p.causal , p.h2_total = _f(p.new_haps ,
@@ -176,6 +183,14 @@ def sim_causal_effect_in_1st_gen_wt_indirect_effect(p , ar) :
 
     p.y_p , p.y_m = p.y_p[p.f_inds] , p.y_m[p.m_inds]
 
+    p = compute_phenotype_wt_indir(p)
+
+    p = rec_v_and_ped_wt_indir(p , ar , gen = 0)
+
+    return p
+
+def compute_phenotype_wt_indir(p) :
+    print('Computing phenotypes')
     _o = compute_phenotype_indirect(p.new_haps ,
                                     p.haps ,
                                     p.f_inds ,
@@ -193,7 +208,13 @@ def sim_causal_effect_in_1st_gen_wt_indirect_effect(p , ar) :
     return p
 
 def sim_generations_wt_no_indir(p , ar) :
-    for gen in range(p.total_matings) :
+    for m in range(p.total_matings) :
+
+        p = mate(p , ar , m)
+
+        # generate haplotypes of new generation
+        p.haps = p.new_haps
+        p = gen_next_gen_haps(p)
 
         p.delta_p , p.delta_m = p.g_ma[p.f_inds] , p.g_fe[p.m_inds]
         p.y_p , p.y_m = p.y_ma[p.f_inds] , p.y_fe[p.m_inds]
@@ -209,41 +230,40 @@ def sim_generations_wt_no_indir(p , ar) :
                                                    p.y_p ,
                                                    p.y_m)
         else :
-            _f = compute_phenotype
-            p.g_ma , p.g_fe , p.y_ma , p.y_fe = _f(p.new_haps ,
-                                                   p.causal ,
-                                                   p.a ,
-                                                   1 - p.h2)
+            p = compute_phenotype_no_indir_no_beta_vert(p)
 
-        p = rec_v_and_ped_wt_no_indir(p , ar , gen)
-        p = mate(p , ar , gen)
+        p = rec_v_and_ped_wt_no_indir(p , ar , m + 1)
 
-        p.haps = p.new_haps
-        p = gen_next_gen_haps(p)
+        p = save_gpar_haps_and_par_ibd(p , m + 1)
+
+    return p
+
+def save_gpar_haps_and_par_ibd(p , gen) :
+    if gen == p.total_matings - 2 :
+        print('*** gpar gen ***')
+        p.haps_gpar = p.new_haps
+
+    if gen == p.total_matings - 1 :
+        print('*** par gen ***')
+        p.ibd_par = p.ibd
+
+    return p
 
 def sim_generations_wt_indir(p , ar) :
-    for gen in range(p.total_matings) :
-        print('Computing phenotypes')
-        _o = compute_phenotype_indirect(p.new_haps ,
-                                        p.haps ,
-                                        p.f_inds ,
-                                        p.m_inds ,
-                                        p.causal ,
-                                        p.a[: , 0] ,
-                                        p.a[: , 1] ,
-                                        1 - p.h2_total)
+    for m in range(p.total_matings) :
+        p = mate(p , ar , m)
 
-        p.g_ma , p.g_fe , p.y_ma , p.y_fe = _o[:4]
-        p.eta_p , p.eta_m , p.delta_p , p.delta_m = _o[4 :]
-
-        _o = compute_genetic_component(p.new_haps , p.causal , p.a[: , 1])
-        p.eta_ma , p.eta_fe = _o
-
-        p = rec_v_and_ped_wt_indir(p , ar , gen)
-        p = mate(p , ar , gen)
-
+        # generate haplotypes of new generation
         p.haps = p.new_haps
         p = gen_next_gen_haps(p)
+
+        p = compute_phenotype_wt_indir(p)
+
+        p = rec_v_and_ped_wt_indir(p , ar , m + 1)
+
+        p = save_gpar_haps_and_par_ibd(p , m + 1)
+
+    return p
 
 def rec_v_and_ped_wt_no_indir(p , ar , gen) :
     p.v[gen , :] = compute_vcomps(p.g_ma ,
@@ -317,122 +337,100 @@ def mate_assortatively(p , ar) :
     p.f_inds , p.m_inds = am_indices(p.y_ma , p.y_fe , ar.r_par)
     return p
 
-def mate(p , ar , gen) :
-    print('Mating ' + str(gen + 2))
-    if gen < ar.n_random :
+def mate(p , ar , m) :
+    print('Mating ' + str(m + 2))
+    if m < ar.n_random :
         p = mate_randomly(p , ar)
     else :
         p = mate_assortatively(p , ar)
     return p
 
+def add_v_and_ped_cols(p) :
+    p.v = np.vstack((p.vcols , p.v))
+    p.ped = np.vstack((p.pedcols , p.ped))
+    return p
+
 def forward_sim(p , ar) :
     """ Simulate population """
-
-    print('Generating first generation by random-mating')
-    p = mate_randomly(p , ar)
-
-    # Generate haplotypes of new generation
-    p = gen_next_gen_haps(p)
 
     # total matings after first gen of random mating
     p.total_matings = ar.n_random + ar.n_am
 
     p = prepare_v_and_ped(p , ar)
 
+    # first generation by random mating
+    print('Generating first generation by random-mating')
+    p = mate_randomly(p , ar)
+
+    # Generate haplotypes of new generation
+    p = gen_next_gen_haps(p)
+
     if ar.v_indir == 0 :
-        p = sim_causal_effect_in_1st_gen_no_indirect_effect(p , ar)
-        sim_generations_wt_no_indir(p , ar)
+        p = sim_causal_effect_in_1st_gen_wt_no_indir(p , ar)
+        p = sim_generations_wt_no_indir(p , ar)
 
     else :
-        p = sim_causal_effect_in_1st_gen_wt_indirect_effect(p , ar)
-        sim_generations_wt_indir(p , ar)
+        p = sim_causal_effect_in_1st_gen_wt_indir(p , ar)
+        p = sim_generations_wt_indir(p , ar)
 
-    # Simulate ngen_random generations of random-mating then ngen_am generations of assortative mating
-    for gen in range(total_matings) :
-        if gen == total_matings - 1 - 2 :
-            print('*** gpar gen ***')
-            haps_gpar = new_haps
+    p = add_v_and_ped_cols(p)
 
-        elif gen == total_matings - 1 - 1 :
-            print('*** par gen ***')
-            haps_par = new_haps
-            ibd_par = ibd
+    return p
 
-        elif gen == total_matings - 1 :
-            print('*** offspring gen ***')
-            haps_off = new_haps
-            ibd_off = ibd
+def save_v_and_ped(p , ar) :
+    print('Saving variance components')
+    np.savetxt(ar.outprefix + 'VCs.txt' , p.v , fmt = '%s')
 
-        else :
-            # Generate haplotypes of new generation
-            haps = new_haps
-            _f = gen_next_gen_haps
-            new_haps , ibd = _f(unlinked , haps , maps , f_inds , m_inds)
+    print('Writing pedigree')
+    np.savetxt(ar.outprefix + 'pedigree.txt' , p.ped , fmt = '%s')
 
-    v = np.vstack((v_header , v))
-    ped = np.vstack((pedcols , ped))
+def save_phenotype_of_offspring_and_par(p) :
+    print('saving phenotypes of offspring and parents generations')
 
-    return haps_gpar , haps_par , ibd_par , haps_off , ibd_off , a , ped , v
+    _dc = {
+            0 : (p.total_matings , '') ,
+            1 : (p.total_matings - 1 , '_par') ,
+            }
+
+    for gen , gen_suf in _dc.values() :
+        n_gen = str(gen)
+        gen_inds = [x.split('_')[0] == n_gen for x in p.ped[: , 0]]
+        phen_out = p.ped[gen_inds , :]
+        _o = phen_out[: , [0 , 1 , 5]]
+        _fn = 'phenotype' + gen_suf + '.txt'
+        np.savetxt(ar.outprefix + _fn , _o , fmt = '%s')
 
 def main(ar) :
     print('Simulating an initial generation by random-mating')
     print('Followed by ' + str(ar.n_random) + ' generations of random-mating')
     print('Followed by ' + str(ar.n_am) + ' generations of assortative mating')
 
-    ##
     p = Population()
     p.unlinked = True  # since bgen arg is None
 
-    ##
     p = simulate_1st_gen(p , ar , maf = None , min_maf = .05)
 
-    ##
     # Perform simulation
-    haps_gpar , haps_par , ibd_par , a_par , haps_off , ibd_off , a_off , ped , V = forward_sim(
-            haps ,
-            maps ,
-            ar.n_random ,
-            ar.n_am ,
-            unlinked ,
-            ar.n_causal ,
-            ar.h2 ,
-            args = ar ,
-            v_indirect = ar.v_indir ,
-            r_direct_indirect = ar.r_dir_indir ,
-            beta_vert = ar.beta_vert ,
-            r_y = ar.r_par)
+    p = forward_sim(p , ar)
+
+    save_v_and_ped(p , ar)
+
+    save_phenotype_of_offspring_and_par(p)
 
     ##
-    # rm empty rows of ped
-    print('ped: \n' , ped)
-
-    ped = ped[~np.all(ped == '' , axis = 1)]
-
-    print('ped: \n' , ped)
-
-    ##
-    print('Saving variance components')
-    np.savetxt(ar.outprefix + 'VCs.txt' , V , fmt = '%s')
-
-    ##
-    print('Writing pedigree')
-    np.savetxt(ar.outprefix + 'pedigree.txt' , ped , fmt = '%s')
-
-    ##
-    print('saving phenotypes of offspring and parents generations')
 
     # offspring
-    n_last = ped[ped.shape[0] - 1 , 0].split('_')[0]
+    n_last = str(p.total_matings)
     print('n_last: ' , n_last)
 
-    last_gen = [x.split('_')[0] == n_last for x in ped[: , 0]]
-    phen_out = ped[last_gen , :]
+    last_gen = [x.split('_')[0] == n_last for x in p.ped[: , 0]]
+    phen_out = p.ped[last_gen , :]
     np.savetxt(ar.outprefix + 'phenotype.txt' ,
                phen_out[: , [0 , 1 , 5]] ,
                fmt = '%s')
 
     # parents
-    n_par = str(int(n_last) - 1)
+    n_par = str(p.total_matings - 1)
     par_gen = [x.split('_')[0] == n_par for x in ped[: , 0]]
     phen_par = ped[par_gen , :]
     np.savetxt(ar.outprefix + 'phenotype_par.txt' ,
@@ -440,7 +438,7 @@ def main(ar) :
                fmt = '%s')
 
     # gpars
-    n_gpar = str(int(n_last) - 2)
+    n_gpar = str(p.total_matings - 2)
     gpar_gen = [x.split('_')[0] == n_gpar for x in ped[: , 0]]
 
     ##
@@ -581,5 +579,5 @@ def main(ar) :
                    fmt = '%s')
 
 if __name__ == "__main__" :
-    args1 = Args()
-    main(ar = args1)
+    ar = Args()
+    main(ar = ar)
