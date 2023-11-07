@@ -384,6 +384,11 @@ def save_v_and_ped(p , ar) :
     print('Writing pedigree')
     np.savetxt(ar.outprefix + 'pedigree.txt' , p.ped , fmt = '%s')
 
+def get_gen_inds(p , gen) :
+    n_gen = str(gen)
+    gen_inds = [x.split('_')[0] == n_gen for x in p.ped[: , 0]]
+    return gen_inds
+
 def save_phenotype_of_offspring_and_par(p) :
     print('saving phenotypes of offspring and parents generations')
 
@@ -393,12 +398,16 @@ def save_phenotype_of_offspring_and_par(p) :
             }
 
     for gen , gen_suf in _dc.values() :
-        n_gen = str(gen)
-        gen_inds = [x.split('_')[0] == n_gen for x in p.ped[: , 0]]
+        gen_inds = get_gen_inds(p , gen)
         phen_out = p.ped[gen_inds , :]
         _o = phen_out[: , [0 , 1 , 5]]
         _fn = 'phenotype' + gen_suf + '.txt'
         np.savetxt(ar.outprefix + _fn , _o , fmt = '%s')
+
+def save_gts_of_last_three_gens(p , ar) :
+    print('Saving genotypes for last 3 generations')
+
+    off_inds = get_gen_inds(p , p.total_matings)
 
 def main(ar) :
     print('Simulating an initial generation by random-mating')
@@ -418,31 +427,6 @@ def main(ar) :
     save_phenotype_of_offspring_and_par(p)
 
     ##
-
-    # offspring
-    n_last = str(p.total_matings)
-    print('n_last: ' , n_last)
-
-    last_gen = [x.split('_')[0] == n_last for x in p.ped[: , 0]]
-    phen_out = p.ped[last_gen , :]
-    np.savetxt(ar.outprefix + 'phenotype.txt' ,
-               phen_out[: , [0 , 1 , 5]] ,
-               fmt = '%s')
-
-    # parents
-    n_par = str(p.total_matings - 1)
-    par_gen = [x.split('_')[0] == n_par for x in ped[: , 0]]
-    phen_par = ped[par_gen , :]
-    np.savetxt(ar.outprefix + 'phenotype_par.txt' ,
-               phen_par[: , [0 , 1 , 5]] ,
-               fmt = '%s')
-
-    # gpars
-    n_gpar = str(p.total_matings - 2)
-    gpar_gen = [x.split('_')[0] == n_gpar for x in ped[: , 0]]
-
-    ##
-    print('Saving genotypes for last 3 generations')
 
     _dc = {
             0 : (last_gen , haps_off , '' , ibd_off) ,
