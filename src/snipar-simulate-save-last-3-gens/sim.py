@@ -14,7 +14,7 @@ from snipar.simulate import compute_phenotype_indirect
 from snipar.simulate import compute_phenotype_vert
 from snipar.simulate import compute_vcomps
 from snipar.simulate import create_ped_output
-from snipar.simulate import impute_all_fams_phased
+from snipar.simulate import impute_all_fams_phased , impute_all_fams
 from snipar.simulate import produce_next_gen
 from snipar.simulate import produce_next_gen_unlinked
 from snipar.simulate import random_mating_indices
@@ -70,8 +70,8 @@ class Population :
     eta_m = None
     eta_ma = None
     eta_fe = None
-    ibd_par = None
-    haps_gpar = None
+    par_ibd = None
+    gpar_haps = None
 
 def simulate_1st_gen(p , ar , maf , min_maf) :
     """ Simulate first generation """
@@ -241,11 +241,11 @@ def sim_generations_wt_no_indir(p , ar) :
 def save_gpar_haps_and_par_ibd(p , gen) :
     if gen == p.total_matings - 2 :
         print('*** gpar gen ***')
-        p.haps_gpar = p.new_haps
+        p.gpar_haps = p.new_haps
 
     if gen == p.total_matings - 1 :
         print('*** par gen ***')
-        p.ibd_par = p.ibd
+        p.par_ibd = p.ibd
 
     return p
 
@@ -389,7 +389,7 @@ def get_gen_inds(p , gen) :
     gen_inds = [x.split('_')[0] == n_gen for x in p.ped[: , 0]]
     return gen_inds
 
-def save_phenotype_of_offspring_and_par(p) :
+def save_phenotype_of_offspring_and_par(p , ar) :
     print('saving phenotypes of offspring and parents generations')
 
     _dc = {
@@ -404,10 +404,173 @@ def save_phenotype_of_offspring_and_par(p) :
         _fn = 'phenotype' + gen_suf + '.txt'
         np.savetxt(ar.outprefix + _fn , _o , fmt = '%s')
 
-def save_gts_of_last_three_gens(p , ar) :
+def gen_bim_i(p , i) :
+    bim_i = np.vstack((np.repeat(p.chroms[i] , p.snp_ids[i].shape[0]) ,
+                       p.snp_ids[i] , p.maps[i] , p.positions[i] ,
+                       p.alleles[i][: , 0] , p.alleles[i][: , 1])).T
+    return bim_i
+
+def save_bim_i(p , bim_i , i , gen_suf , ar) :
+    np.savetxt(ar.outprefix + 'chr_' + str(p.chroms[i]) + gen_suf + '.bim' ,
+               bim_i ,
+               fmt = '%s' ,
+               delimiter = '\t')
+
+def gen_gts_chr(p , i , bim_i , gen_inds , gen_haps) :
+    gts_chr = SnpData(iid = p.ped[gen_inds , 0 :2] ,
+                      sid = p.snp_ids[i] ,
+                      pos = bim_i[: , [0 , 2 , 3]] ,
+                      val = np.sum(gen_haps[i] ,
+                                   axis = 3 ,
+                                   dtype = np.uint8).reshape((gen_haps[i].shape[
+                                                                  0] * 2 ,
+                                                              gen_haps[i].shape[
+                                                                  2])))
+
+    return gts_chr
+
+def write_gts_as_bed(p , i , gts_chr , gen_suf , ar) :
+    Bed.write(ar.outprefix + 'chr_' + str(p.chroms[i]) + gen_suf + '.bed' ,
+              gts_chr ,
+              count_A1 = True ,
+              _require_float32_64 = False)
+
+def save_gts_of_last_three_gens_then_impute_phased_parental_gts(p , ar) :
     print('Saving genotypes for last 3 generations')
 
     off_inds = get_gen_inds(p , p.total_matings)
+    par_inds = get_gen_inds(p , p.total_matings - 1)
+    gpar_inds = get_gen_inds(p , p.total_matings - 2)
+
+    _dc = {
+            0 : (off_inds , p.new_haps , '' , p.ibd) ,
+            1 : (par_inds , p.haps , '_par' , p.par_ibd) ,
+            2 : (gpar_inds , p.gpar_haps , '_gpar' , None) ,
+            }
+
+    for i in range(len(p.new_haps)) :
+        print('Writing genotypes for chromosome ' + str(p.chroms[i]))
+
+        bim_i = gen_bim_i(p , i)
+
+        for g_inds , g_haps , g_suf , g_ibd in _dc.values() :
+            save_bim_i(p , bim_i , i , g_suf , ar)
+
+            gts_chr = gen_gts_chr(p , i , bim_i , g_inds , g_haps)
+
+            write_gts_as_bed(p , i , gts_chr , g_suf , ar)
+
+            if g_suf == '_gpar' :
+                # skip imputaion of parents of grandparental generation
+                continue
+
+            print('Imputing parental genotypes and saving for gen' + g_suf)
+
+            freqs = np.mean(gts_chr.val , axis = 0) / 2.0
+            imp_ped = p.ped[g_inds , 0 :4]
+            imp_ped = np.hstack((imp_ped , np.zeros((imp_ped.shape[0] , 2) ,
+                                                    dtype = bool)))
+
+            print('phased')
+            hf = h5py.File(ar.outprefix + 'phased_impute_chr_' + str(
+                    p.chroms[i]) + g_suf + '.hdf5' , 'w')
+
+            phased_imp = impute_all_fams_phased(g_haps[i] , freqs , g_ibd[i])
+            hf['imputed_par_gts'] = phased_imp
+            del phased_imp
+            hf['bim_values'] = encode_str_array(bim_i)
+            hf['bim_columns'] = encode_str_array(np.array(['rsid' , 'map' ,
+                                                           'position' ,
+                                                           'allele1' ,
+                                                           'allele2']))
+            hf['pedigree'] = encode_str_array(imp_ped)
+            hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
+            hf.close()
+
+            print('unphased')
+            hf = h5py.File(ar.outprefix + 'unphased_impute_chr_' + str(
+                    p.chroms[i]) + g_suf + '.hdf5' , 'w')
+
+            uibd = g_ibd[i].copy()
+            uibd[i] = np.sum(g_ibd[i] , axis = 2)
+
+            imp = impute_all_fams(gts_chr , freqs , uibd[i])
+            hf['imputed_par_gts'] = imp
+            del imp
+            hf['bim_values'] = encode_str_array(bim_i)
+            hf['bim_columns'] = encode_str_array(np.array(['rsid' , 'map' ,
+                                                           'position' ,
+                                                           'allele1' ,
+                                                           'allele2']))
+            hf['pedigree'] = encode_str_array(imp_ped)
+            hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
+            hf.close()
+
+def write_ibd_segs_of_offsrping_and_par(p , ar) :
+    print('Write IBD segments of offspring and parents')
+
+    off_inds = get_gen_inds(p , p.total_matings)
+    par_inds = get_gen_inds(p , p.total_matings - 1)
+
+    _dc = {
+            0 : (off_inds , p.ibd , '') ,
+            1 : (par_inds , p.par_ibd , '_par') ,
+            }
+
+    for g_inds , ibd , g_suf in _dc.values() :
+        sibpairs = p.ped[g_inds , 1]
+        sibpairs = sibpairs.reshape((int(sibpairs.shape[0] / 2) , 2))
+
+        for i in range(len(p.haps)) :
+            print('Writing IBD segments for chromosome ' + str(p.chroms[i]))
+
+            ibd[i] = np.sum(ibd[i] , axis = 2)
+
+            _fp = ar.outprefix + 'chr_'
+            _fp += str(p.chroms[i]) + g_suf + '.segments.gz'
+
+            _ = write_segs_from_matrix(ibd[i] ,
+                                       sibpairs ,
+                                       p.snp_ids[i] ,
+                                       p.positions[i] ,
+                                       p.maps[i] ,
+                                       p.chroms[i] ,
+                                       _fp)
+
+def make_causal_out_and_save(p , ar) :
+    causal_out = np.zeros((p.a.shape[0] , 5) , dtype = 'U30')
+    snp_count = 0
+
+    if ar.v_indir == 0 :
+        causal_out = np.vstack((np.array(['SNP' , 'A1' , 'A2' , 'direct' ,
+                                          'direct_v1']).reshape((1 , 5)) ,
+                                causal_out))
+
+        for i in range(len(p.haps)) :
+            a_chr = p.a[snp_count :(snp_count + p.snp_ids[i].shape[0])]
+            a_chr_v1 = a_chr + np.random.normal(0 , np.std(a_chr) , a_chr.shape)
+            causal_out[snp_count :(snp_count + p.snp_ids[i].shape[0]) ,
+            :] = np.vstack((p.snp_ids[i] , p.alleles[i][: , 0] ,
+                            p.alleles[i][: , 1] , a_chr , a_chr_v1)).T
+
+            snp_count += p.snp_ids[i].shape[0]
+
+
+    else :
+        causal_out = np.vstack((
+                np.array(['SNP' , 'A1' , 'A2' , 'direct' , 'indirect']).reshape(
+                        (1 , 5)) , causal_out))
+
+        for i in range(len(p.haps)) :
+            a_chr = p.a[snp_count :(snp_count + p.snp_ids[i].shape[0]) , :]
+            causal_out[snp_count :(snp_count + p.snp_ids[i].shape[0]) ,
+            :] = np.vstack((p.snp_ids[i] , p.alleles[i][: , 0] ,
+                            p.alleles[i][: , 1] , a_chr[: , 0] ,
+                            a_chr[: , 1])).T
+
+            snp_count += p.snp_ids[i].shape[0]
+
+    np.savetxt(ar.outprefix + 'causal_effects.txt' , causal_out , fmt = '%s')
 
 def main(ar) :
     print('Simulating an initial generation by random-mating')
@@ -424,144 +587,14 @@ def main(ar) :
 
     save_v_and_ped(p , ar)
 
-    save_phenotype_of_offspring_and_par(p)
+    save_phenotype_of_offspring_and_par(p , ar)
 
-    ##
+    save_gts_of_last_three_gens_then_impute_phased_parental_gts(p , ar)
 
-    _dc = {
-            0 : (last_gen , haps_off , '' , ibd_off) ,
-            1 : (par_gen , haps_par , '_par' , ibd_par) ,
-            2 : (gpar_gen , haps_gpar , '_gpar' , None) ,
-            }
+    write_ibd_segs_of_offsrping_and_par(p , ar)
 
-    for i in range(len(haps_off)) :
-        print('Writing genotypes for chromosome ' + str(chroms[i]))
-
-        bim_i = np.vstack((np.repeat(chroms[i] , snp_ids[i].shape[0]) ,
-                           snp_ids[i] , maps[i] , positions[i] ,
-                           alleles[i][: , 0] , alleles[i][: , 1])).T
-
-        for gen , gen_haps , gen_suf , ibd in _dc.values() :
-            gts_chr = SnpData(iid = ped[gen , 0 :2] ,
-                              sid = snp_ids[i] ,
-                              pos = bim_i[: , [0 , 2 , 3]] ,
-                              val = np.sum(gen_haps[i] ,
-                                           axis = 3 ,
-                                           dtype = np.uint8).reshape((gen_haps[
-                                                                          i].shape[
-                                                                          0] * 2 ,
-                                                                      gen_haps[
-                                                                          i].shape[
-                                                                          2])))
-            Bed.write(ar.outprefix + 'chr_' + str(
-                    chroms[i]) + gen_suf + '.bed' ,
-                      gts_chr ,
-                      count_A1 = True ,
-                      _require_float32_64 = False)
-
-            np.savetxt(ar.outprefix + 'chr_' + str(
-                    chroms[i]) + gen_suf + '.bim' ,
-                       bim_i ,
-                       fmt = '%s' ,
-                       delimiter = '\t')
-
-            if gen_suf == '_gpar' :
-                continue  # skip imputation for grandparents
-
-            print('Imputing parental genotypes and saving for gen' + gen_suf)
-            freqs = np.mean(gts_chr.val , axis = 0) / 2.0
-            imp_ped = ped[gen , 0 :4]
-            imp_ped = np.hstack((imp_ped , np.zeros((imp_ped.shape[0] , 2) ,
-                                                    dtype = bool)))
-
-            print('phased')
-
-            hf = h5py.File(ar.outprefix + 'phased_impute_chr_' + str(
-                    chroms[i]) + gen_suf + '.hdf5' , 'w')
-            phased_imp = impute_all_fams_phased(gen_haps[i] , freqs , ibd[i])
-            hf['imputed_par_gts'] = phased_imp
-            del phased_imp
-            hf['bim_values'] = encode_str_array(bim_i)
-            hf['bim_columns'] = encode_str_array(np.array(['rsid' , 'map' ,
-                                                           'position' ,
-                                                           'allele1' ,
-                                                           'allele2']))
-            hf['pedigree'] = encode_str_array(imp_ped)
-            hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
-            hf.close()
-
-    del gts_chr
-
-    ##
-    print('Write IBD segments')
-
-    _dc = {
-            0 : (last_gen , a_off , haps_off , ibd_off , '') ,
-            1 : (par_gen , a_par , haps_par , ibd_par , '_par') ,
-            }
-
-    for gen , a , haps , ibd , gen_suf in _dc.values() :
-
-        snp_count = 0
-        sibpairs = ped[gen , 1]
-        sibpairs = sibpairs.reshape((int(sibpairs.shape[0] / 2) , 2))
-
-        if ar.v_indir == 0 :
-            causal_out = np.zeros((a.shape[0] , 5) , dtype = 'U30')
-        else :
-            causal_out = np.zeros((a.shape[0] , 5) , dtype = 'U30')
-
-        for i in range(len(haps)) :
-            print('gen: ' , gen_suf)
-            print('Writing IBD segments for chromosome ' + str(chroms[i]))
-            # Segments
-            ibd1 = ibd.copy()
-
-            if not ar.unphased_impute :
-                ibd1[i] = np.sum(ibd[i] , axis = 2)
-
-            _ = write_segs_from_matrix(ibd1[i] ,
-                                       sibpairs ,
-                                       snp_ids[i] ,
-                                       positions[i] ,
-                                       maps[i] ,
-                                       chroms[i] ,
-                                       ar.outprefix + 'chr_' + str(chroms[
-                                                                       i]) + gen_suf + '.segments.gz')
-            del ibd1
-
-            # Causal effects
-            if ar.v_indir == 0 :
-                a_chr = a[snp_count :(snp_count + snp_ids[i].shape[0])]
-                a_chr_v1 = a_chr + np.random.normal(0 ,
-                                                    np.std(a_chr) ,
-                                                    a_chr.shape)
-                causal_out[snp_count :(snp_count + snp_ids[i].shape[0]) ,
-                :] = np.vstack((snp_ids[i] , alleles[i][: , 0] ,
-                                alleles[i][: , 1] , a_chr , a_chr_v1)).T
-                if i == 0 :
-                    causal_out = np.vstack((np.array(['SNP' , 'A1' , 'A2' ,
-                                                      'direct' ,
-                                                      'direct_v1']).reshape((1 ,
-                                                                             5)) ,
-                                            causal_out))
-            else :
-                a_chr = a[snp_count :(snp_count + snp_ids[i].shape[0]) , :]
-                causal_out[snp_count :(snp_count + snp_ids[i].shape[0]) ,
-                :] = np.vstack((snp_ids[i] , alleles[i][: , 0] ,
-                                alleles[i][: , 1] , a_chr[: , 0] ,
-                                a_chr[: , 1])).T
-                if i == 0 :
-                    causal_out = np.vstack((
-                            np.array(['SNP' , 'A1' , 'A2' , 'direct' ,
-                                      'indirect']).reshape((1 , 5)) ,
-                            causal_out))
-            snp_count += snp_ids[i].shape[0]
-
-        np.savetxt(ar.outprefix + 'causal_effects' + gen_suf + '.txt' ,
-                   causal_out ,
-                   fmt = '%s')
+    make_causal_out_and_save(p , ar)
 
 if __name__ == "__main__" :
-    ar = Args()
-    main(ar = ar)
+    ar0 = Args()
+    main(ar = ar0)
