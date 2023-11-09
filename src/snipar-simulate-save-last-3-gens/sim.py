@@ -344,7 +344,7 @@ def mate_assortatively(p , ar) :
     return p
 
 def mate(p , ar , m) :
-    print('Mating ' + str(m + 2))
+    print('Mating ' + str(m + 1))
     if m < ar.n_random :
         p = mate_randomly(p , ar)
     else :
@@ -534,18 +534,21 @@ def write_ibd_segs_of_offsrping_and_par(p , ar) :
             }
 
     for g_inds , ibd , g_suf in _dc.values() :
+        print("ibd for gen: " , g_suf)
+
         sibpairs = p.ped[g_inds , 1]
         sibpairs = sibpairs.reshape((int(sibpairs.shape[0] / 2) , 2))
 
         for i in range(len(p.haps)) :
             print('Writing IBD segments for chromosome ' + str(p.chroms[i]))
 
-            ibd[i] = np.sum(ibd[i] , axis = 2)
+            uibd = ibd.copy()
+            uibd[i] = np.sum(ibd[i] , axis = 2)
 
             _fp = ar.outprefix + 'chr_'
             _fp += str(p.chroms[i]) + g_suf + '.segments.gz'
 
-            _ = write_segs_from_matrix(ibd[i] ,
+            _ = write_segs_from_matrix(uibd[i] ,
                                        sibpairs ,
                                        p.snp_ids[i] ,
                                        p.positions[i] ,
