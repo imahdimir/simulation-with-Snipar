@@ -551,11 +551,9 @@ def make_causal_out_and_save(p , ar) :
                             p.alleles[i][: , 1] , a_chr , a_chr_v1)).T
 
             if i == 0 :
-                causal_out = np.vstack((np.array(['SNP' , 'A1' , 'A2' ,
-                                                  'direct' ,
-                                                  'direct_v1']).reshape((1 ,
-                                                                         5)) ,
-                                        causal_out))
+                _cols = ['SNP' , 'A1' , 'A2' , 'direct' , 'direct_v1']
+                _arr = np.array(_cols).reshape((1 , 5))
+                causal_out = np.vstack((_arr , causal_out))
 
             snp_count += p.snp_ids[i].shape[0]
 
