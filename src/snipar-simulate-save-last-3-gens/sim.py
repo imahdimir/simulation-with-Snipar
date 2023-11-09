@@ -435,7 +435,7 @@ def write_gts_as_bed(p , i , gts_chr , gen_suf , ar) :
               count_A1 = True ,
               _require_float32_64 = False)
 
-def save_gts_of_last_three_gens_then_impute_phased_parental_gts(p , ar) :
+def save_gts_of_last_three_gens_then_impute_parental_gts(p , ar) :
     print('Saving genotypes for last 3 generations')
 
     off_inds = get_gen_inds(p , p.total_matings)
@@ -462,7 +462,7 @@ def save_gts_of_last_three_gens_then_impute_phased_parental_gts(p , ar) :
 
             if g_suf == '_gpar' :
                 # skip imputaion of parents of grandparental generation
-                continue
+                return
 
             print('Imputing parental genotypes and saving for gen' + g_suf)
 
@@ -491,7 +491,7 @@ def save_gts_of_last_three_gens_then_impute_phased_parental_gts(p , ar) :
             hf = h5py.File(ar.outprefix + 'unphased_impute_chr_' + str(
                     p.chroms[i]) + g_suf + '.hdf5' , 'w')
 
-            uibd = g_ibd[i].copy()
+            uibd = g_ibd.copy()
             uibd[i] = np.sum(g_ibd[i] , axis = 2)
 
             imp = impute_all_fams(gts_chr , freqs , uibd[i])
@@ -592,7 +592,7 @@ def main(ar) :
 
     save_phenotype_of_offspring_and_par(p , ar)
 
-    save_gts_of_last_three_gens_then_impute_phased_parental_gts(p , ar)
+    save_gts_of_last_three_gens_then_impute_parental_gts(p , ar)
 
     write_ibd_segs_of_offsrping_and_par(p , ar)
 
