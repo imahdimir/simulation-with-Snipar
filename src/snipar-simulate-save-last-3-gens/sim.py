@@ -26,7 +26,7 @@ class Args :
     n_causal = 1000
     h2 = 0.5
     outprefix = 'sim/'
-    nfam = 30  # * 10 ** 3
+    nfam = 30 * 10 ** 3
     n_random = 0
     n_am = 22
     save_par_gts = True
@@ -464,7 +464,7 @@ def save_gts_of_last_three_gens_then_impute_parental_gts(p , ar) :
                 # skip imputaion of parents of grandparental generation
                 return
 
-            print('Imputing parental genotypes and saving for gen' + g_suf)
+            print('Imputing parental genotypes and saving for gen: ' + g_suf)
 
             freqs = np.mean(gts_chr.val , axis = 0) / 2.0
             imp_ped = p.ped[g_inds , 0 :4]
@@ -487,24 +487,25 @@ def save_gts_of_last_three_gens_then_impute_parental_gts(p , ar) :
             hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
             hf.close()
 
-            print('unphased')
-            hf = h5py.File(ar.outprefix + 'unphased_impute_chr_' + str(
-                    p.chroms[i]) + g_suf + '.hdf5' , 'w')
+            if False :
+                print('unphased')
+                hf = h5py.File(ar.outprefix + 'unphased_impute_chr_' + str(
+                        p.chroms[i]) + g_suf + '.hdf5' , 'w')
 
-            uibd = g_ibd.copy()
-            uibd[i] = np.sum(g_ibd[i] , axis = 2)
+                uibd = g_ibd.copy()
+                uibd[i] = np.sum(g_ibd[i] , axis = 2)
 
-            imp = impute_all_fams(gts_chr , freqs , uibd[i])
-            hf['imputed_par_gts'] = imp
-            del imp
-            hf['bim_values'] = encode_str_array(bim_i)
-            hf['bim_columns'] = encode_str_array(np.array(['rsid' , 'map' ,
-                                                           'position' ,
-                                                           'allele1' ,
-                                                           'allele2']))
-            hf['pedigree'] = encode_str_array(imp_ped)
-            hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
-            hf.close()
+                imp = impute_all_fams(gts_chr , freqs , uibd[i])
+                hf['imputed_par_gts'] = imp
+                del imp
+                hf['bim_values'] = encode_str_array(bim_i)
+                hf['bim_columns'] = encode_str_array(np.array(['rsid' , 'map' ,
+                                                               'position' ,
+                                                               'allele1' ,
+                                                               'allele2']))
+                hf['pedigree'] = encode_str_array(imp_ped)
+                hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
+                hf.close()
 
 def write_ibd_segs_of_offsrping_and_par(p , ar) :
     print('Write IBD segments of offspring and parents')
