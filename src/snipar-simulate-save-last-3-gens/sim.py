@@ -26,7 +26,7 @@ class Args :
     n_causal = 1000
     h2 = 0.5
     outprefix = 'sim/'
-    nfam = 30 * 10 ** 3
+    nfam = 30  # * 10 ** 3
     n_random = 0
     n_am = 22
     save_par_gts = True
@@ -122,11 +122,11 @@ def prepare_v_and_ped(p , ar) :
     p.pedcols = list(pedcols.keys())
 
     if ar.v_indir == 0 :
-        p.v = np.zeros((p.total_matings , 3))
+        p.v = np.zeros((p.total_matings + 1 , 3))
         p.vcols = np.array(['v_g' , 'v_y' , 'r_delta']).reshape((1 , 3))
 
     else :
-        p.v = np.zeros((p.total_matings , 8))
+        p.v = np.zeros((p.total_matings + 1 , 8))
         p.vcols = np.array(['v_g' , 'v_y' , 'r_delta' , 'v_eg' , 'c_ge' ,
                             'r_eta' , 'r_delta_eta_c' ,
                             'r_delta_eta_tau']).reshape((1 , 8))
@@ -137,7 +137,7 @@ def prepare_v_and_ped(p , ar) :
 
     # pedigree
     p.pedcols = np.array(p.pedcols)
-    nro = p.total_matings * 2 * ar.nfam
+    nro = (p.total_matings + 1) * 2 * ar.nfam
     p.ped = np.zeros((nro , p.pedcols.shape[0]) , dtype = 'U30')
 
     return p
@@ -542,9 +542,6 @@ def make_causal_out_and_save(p , ar) :
     snp_count = 0
 
     if ar.v_indir == 0 :
-        causal_out = np.vstack((np.array(['SNP' , 'A1' , 'A2' , 'direct' ,
-                                          'direct_v1']).reshape((1 , 5)) ,
-                                causal_out))
 
         for i in range(len(p.haps)) :
             a_chr = p.a[snp_count :(snp_count + p.snp_ids[i].shape[0])]
@@ -553,13 +550,16 @@ def make_causal_out_and_save(p , ar) :
             :] = np.vstack((p.snp_ids[i] , p.alleles[i][: , 0] ,
                             p.alleles[i][: , 1] , a_chr , a_chr_v1)).T
 
+            if i == 0 :
+                causal_out = np.vstack((np.array(['SNP' , 'A1' , 'A2' ,
+                                                  'direct' ,
+                                                  'direct_v1']).reshape((1 ,
+                                                                         5)) ,
+                                        causal_out))
+
             snp_count += p.snp_ids[i].shape[0]
 
-
     else :
-        causal_out = np.vstack((
-                np.array(['SNP' , 'A1' , 'A2' , 'direct' , 'indirect']).reshape(
-                        (1 , 5)) , causal_out))
 
         for i in range(len(p.haps)) :
             a_chr = p.a[snp_count :(snp_count + p.snp_ids[i].shape[0]) , :]
@@ -567,6 +567,11 @@ def make_causal_out_and_save(p , ar) :
             :] = np.vstack((p.snp_ids[i] , p.alleles[i][: , 0] ,
                             p.alleles[i][: , 1] , a_chr[: , 0] ,
                             a_chr[: , 1])).T
+
+            if i == 0 :
+                _cols = ['SNP' , 'A1' , 'A2' , 'direct' , 'indirect']
+                _arr = np.array(_cols).reshape((1 , 5))
+                causal_out = np.vstack((_arr , causal_out))
 
             snp_count += p.snp_ids[i].shape[0]
 
