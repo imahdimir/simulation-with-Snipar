@@ -14,7 +14,8 @@ from snipar.simulate import compute_phenotype_indirect
 from snipar.simulate import compute_phenotype_vert
 from snipar.simulate import compute_vcomps
 from snipar.simulate import create_ped_output
-from snipar.simulate import impute_all_fams_phased , impute_all_fams
+from snipar.simulate import impute_all_fams
+from snipar.simulate import impute_all_fams_phased
 from snipar.simulate import produce_next_gen
 from snipar.simulate import produce_next_gen_unlinked
 from snipar.simulate import random_mating_indices
@@ -72,6 +73,9 @@ class Population :
     eta_fe = None
     par_ibd = None
     gpar_haps = None
+    n_last = None
+    n_par = None
+    n_gpar = None
 
 def simulate_1st_gen(p , ar , maf , min_maf) :
     """ Simulate first generation """
@@ -127,9 +131,11 @@ def prepare_v_and_ped(p , ar) :
 
     else :
         p.v = np.zeros((p.total_matings + 1 , 8))
-        p.vcols = np.array(['v_g' , 'v_y' , 'r_delta' , 'v_eg' , 'c_ge' ,
-                            'r_eta' , 'r_delta_eta_c' ,
-                            'r_delta_eta_tau']).reshape((1 , 8))
+
+        _cols = ['v_g' , 'v_y' , 'r_delta' , 'v_eg' , 'c_ge' , 'r_eta']
+        _cols += ['r_delta_eta_c' , 'r_delta_eta_tau']
+        p.vcols = np.array(_cols).reshape((1 , 8))
+
         p.pedcols += ['INDIRECT' , 'FATHER_INDIRECT' , 'MOTHER_INDIRECT']
 
     # variance components
@@ -213,7 +219,7 @@ def sim_generations_wt_no_indir(p , ar) :
         p = mate(p , ar , m)
 
         # generate haplotypes of new generation
-        p.haps = p.new_haps
+        p.haps = p.new_haps.copy()
         p = gen_next_gen_haps(p)
 
         p.delta_p , p.delta_m = p.g_ma[p.f_inds] , p.g_fe[p.m_inds]
@@ -239,11 +245,11 @@ def sim_generations_wt_no_indir(p , ar) :
     return p
 
 def save_gpar_haps_and_par_ibd(p , gen) :
-    if gen == p.total_matings - 2 :
+    if gen == p.total_matings - 1 :
         print('*** gpar gen ***')
         p.gpar_haps = p.new_haps
 
-    if gen == p.total_matings - 1 :
+    elif gen == p.total_matings :
         print('*** par gen ***')
         p.par_ibd = p.ibd
 
@@ -377,6 +383,13 @@ def forward_sim(p , ar) :
 
     return p
 
+def set_n_last(p) :
+    p.n_last = int(p.ped[p.ped.shape[0] - 1 , 0].split('_')[0])
+    print('n_last is : ' , p.n_last)
+    p.n_par = p.n_last - 1
+    p.n_gpar = p.n_last - 2
+    return p
+
 def save_v_and_ped(p , ar) :
     print('Saving variance components')
     np.savetxt(ar.outprefix + 'VCs.txt' , p.v , fmt = '%s')
@@ -392,9 +405,11 @@ def get_gen_inds(p , gen) :
 def save_phenotype_of_offspring_and_par(p , ar) :
     print('saving phenotypes of offspring and parents generations')
 
+    p = set_n_last(p)
+
     _dc = {
-            0 : (p.total_matings , '') ,
-            1 : (p.total_matings - 1 , '_par') ,
+            0 : (p.n_last , '') ,
+            1 : (p.n_par , '_par') ,
             }
 
     for gen , gen_suf in _dc.values() :
@@ -438,9 +453,9 @@ def write_gts_as_bed(p , i , gts_chr , gen_suf , ar) :
 def save_gts_of_last_three_gens_then_impute_parental_gts(p , ar) :
     print('Saving genotypes for last 3 generations')
 
-    off_inds = get_gen_inds(p , p.total_matings)
-    par_inds = get_gen_inds(p , p.total_matings - 1)
-    gpar_inds = get_gen_inds(p , p.total_matings - 2)
+    off_inds = get_gen_inds(p , p.n_last)
+    par_inds = get_gen_inds(p , p.n_par)
+    gpar_inds = get_gen_inds(p , p.n_gpar)
 
     _dc = {
             0 : (off_inds , p.new_haps , '' , p.ibd) ,
@@ -510,8 +525,8 @@ def save_gts_of_last_three_gens_then_impute_parental_gts(p , ar) :
 def write_ibd_segs_of_offsrping_and_par(p , ar) :
     print('Write IBD segments of offspring and parents')
 
-    off_inds = get_gen_inds(p , p.total_matings)
-    par_inds = get_gen_inds(p , p.total_matings - 1)
+    off_inds = get_gen_inds(p , p.n_last)
+    par_inds = get_gen_inds(p , p.n_par)
 
     _dc = {
             0 : (off_inds , p.ibd , '') ,
