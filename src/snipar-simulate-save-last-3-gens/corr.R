@@ -17,12 +17,12 @@ dl = d[sapply(d$FID, function(x) strsplit(x, "_")[[1]][1]) == "21",]
 cor(dl[, -c(1:8)])
 
 
-d = read.table('direct_v1_obs.pgs.txt', header = T)
-
-
 
 d = read.table('direct_obs.pgs.txt', header = T)
 cor(d[,-c(1:4)])
 
 
+
+d = read.table('direct_v1_obs.pgs.txt', header = T)
+cor(d[,-c(1:4)])
 
