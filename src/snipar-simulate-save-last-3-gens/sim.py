@@ -6,6 +6,7 @@ import h5py
 import numpy as np
 from pysnptools.snpreader import Bed
 from pysnptools.snpreader import SnpData
+
 from snipar.ibd import write_segs_from_matrix
 from snipar.simulate import am_indices
 from snipar.simulate import compute_genetic_component
@@ -50,6 +51,10 @@ class Population :
     chroms = None
     f_inds = None
     m_inds = None
+    f_inds_par = None
+    m_inds_par = None
+    f_inds_gpar = None
+    m_inds_gpar = None
     y_ma = None
     y_fe = None
     y_m = None
@@ -246,13 +251,9 @@ def sim_generations_wt_no_indir(p , ar) :
 
 def save_gpar_haps_and_par_ibd(p , gen) :
     if gen == p.total_matings - 1 :
-        print('*** gpar gen ***')
-        p.gpar_haps = p.new_haps
-
-    elif gen == p.total_matings :
         print('*** par gen ***')
+        p.gpar_haps = p.haps
         p.par_ibd = p.ibd
-
     return p
 
 def sim_generations_wt_indir(p , ar) :
