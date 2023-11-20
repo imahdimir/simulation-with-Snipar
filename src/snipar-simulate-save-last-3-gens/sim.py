@@ -566,12 +566,14 @@ def make_causal_out_and_save(p , ar) :
         for i in range(len(p.haps)) :
             a_chr = p.a[snp_count :(snp_count + p.snp_ids[i].shape[0])]
             a_chr_v1 = a_chr + np.random.normal(0 , np.std(a_chr) , a_chr.shape)
+            a_chr_v10 = a_chr + np.random.normal(0 , 10 * np.std(a_chr) , a_chr.shape)
+
             causal_out[snp_count :(snp_count + p.snp_ids[i].shape[0]) ,
             :] = np.vstack((p.snp_ids[i] , p.alleles[i][: , 0] ,
-                            p.alleles[i][: , 1] , a_chr , a_chr_v1)).T
+                            p.alleles[i][: , 1] , a_chr , a_chr_v1, a_chr_v10)).T
 
             if i == 0 :
-                _cols = ['SNP' , 'A1' , 'A2' , 'direct' , 'direct_v1']
+                _cols = ['SNP' , 'A1' , 'A2' , 'direct' , 'direct_v1', 'direct_v10']
                 _arr = np.array(_cols).reshape((1 , 5))
                 causal_out = np.vstack((_arr , causal_out))
 
