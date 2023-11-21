@@ -558,10 +558,10 @@ def write_ibd_segs_of_offsrping_and_par(p , ar) :
                                        _fp)
 
 def make_causal_out_and_save(p , ar) :
-    causal_out = np.zeros((p.a.shape[0] , 5) , dtype = 'U30')
     snp_count = 0
 
     if ar.v_indir == 0 :
+        causal_out = np.zeros((p.a.shape[0] , 6) , dtype = 'U30')
 
         for i in range(len(p.haps)) :
             a_chr = p.a[snp_count :(snp_count + p.snp_ids[i].shape[0])]
@@ -574,12 +574,13 @@ def make_causal_out_and_save(p , ar) :
 
             if i == 0 :
                 _cols = ['SNP' , 'A1' , 'A2' , 'direct' , 'direct_v1', 'direct_v10']
-                _arr = np.array(_cols).reshape((1 , 5))
+                _arr = np.array(_cols).reshape((1 , 6))
                 causal_out = np.vstack((_arr , causal_out))
 
             snp_count += p.snp_ids[i].shape[0]
 
     else :
+        causal_out = np.zeros((p.a.shape[0] , 5) , dtype = 'U30')
 
         for i in range(len(p.haps)) :
             a_chr = p.a[snp_count :(snp_count + p.snp_ids[i].shape[0]) , :]
