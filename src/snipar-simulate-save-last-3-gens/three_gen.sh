@@ -15,7 +15,7 @@ pgs.py direct_v1_obs --pgs direct_v1_obs_offspring.pgs.txt --phenofile phenotype
 pgs.py direct_v10_obs --pgs direct_v10_obs_offspring.pgs.txt --phenofile phenotype.txt --gen_models 1-3 --scale_phen --scale_pgs
 
 # # k
-pgs.py direct_obs --pgs direct_obs_offspring.pgs.txt --phenofile phenotype.txt --h2f 0.4123775,0
-pgs.py direct_v1_obs --pgs direct_v1_obs_offspring.pgs.txt --phenofile phenotype.txt --h2f 0.4123775,0
-pgs.py direct_v10_obs --pgs direct_v10_obs_offspring.pgs.txt --phenofile phenotype.txt --h2f 0.4123775,0
+pgs.py direct_obs --pgs direct_obs_offspring.pgs.txt --phenofile phenotype.txt --h2f 0.4134823,0
+pgs.py direct_v1_obs --pgs direct_v1_obs_offspring.pgs.txt --phenofile phenotype.txt --h2f 0.4134823,0
+pgs.py direct_v10_obs --pgs direct_v10_obs_offspring.pgs.txt --phenofile phenotype.txt --h2f 0.4134823,0
 
