@@ -18,3 +18,4 @@ pgs.py direct_v10_obs --pgs direct_v10_obs_offspring.pgs.txt --phenofile phenoty
 pgs.py direct_obs --pgs direct_obs_offspring.pgs.txt --phenofile phenotype.txt --h2f 0.4123775,0
 pgs.py direct_v1_obs --pgs direct_v1_obs_offspring.pgs.txt --phenofile phenotype.txt --h2f 0.4123775,0
 pgs.py direct_v10_obs --pgs direct_v10_obs_offspring.pgs.txt --phenofile phenotype.txt --h2f 0.4123775,0
+

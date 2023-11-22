@@ -10,11 +10,11 @@ def main():
     pass
 
     ##
-    fp = '/Users/mahdi/Dropbox/1-Git/snipar-simulate-save-last-3-gens/src/snipar-simulate-save-last-3-gens/sim_new/causal_effects.txt'
+    fp = '/Users/mahdi/Dropbox/1-Git/snipar-simulate-save-last-3-gens/src/snipar-simulate-save-last-3-gens/sim/causal_effects.txt'
     df = pd.read_csv(fp, delimiter='\s')
 
     ##
-    df['direct_v10'] = df['direct'] + np.random.normal(0, 10 * np.std(df['direct']), len(df))
+    df['direct_v10'] = df['direct'] + np.random.normal(0, np.sqrt(10) * np.std(df['direct']), len(df))
 
     ##
     ce = df.to_numpy()
