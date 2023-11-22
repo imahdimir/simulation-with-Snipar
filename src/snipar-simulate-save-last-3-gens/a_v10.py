@@ -27,3 +27,18 @@ def main():
     np.savetxt('ce.txt', ce, fmt = '%s')
 
     ##
+    fp = '/Users/mahdi/Dropbox/1-Git/snipar-simulate-save-last-3-gens/src/snipar-simulate-save-last-3-gens/sim/table1.txt'
+
+    df = pd.read_csv(fp, delim_whitespace = True, index_col = 0)
+
+    ##
+    df = df.round(4)
+
+    ##
+    df.to_csv('/Users/mahdi/Dropbox/1-Git/snipar-simulate-save-last-3-gens/src/snipar-simulate-save-last-3-gens/sim/table1_round4.txt')
+
+
+
+
+
+    ##
