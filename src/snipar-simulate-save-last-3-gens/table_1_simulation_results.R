@@ -1,4 +1,5 @@
 library(glue)
+library(openxlsx)
 
 wd = "/Users/mahdi/Dropbox/1-Git/snipar-simulate-save-last-3-gens/src/snipar-simulate-save-last-3-gens/sim"
 setwd(wd)
@@ -131,11 +132,7 @@ for (i in seq_along(mylist)){
   
 }
 
-write.table(t1, 'table1.txt', quote = FALSE, row.names = FALSE)
-
-
-
-
+write.xlsx(t1, 'table1.xlsx')
 
 
 
