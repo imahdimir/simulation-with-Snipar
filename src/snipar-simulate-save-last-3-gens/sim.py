@@ -24,10 +24,12 @@ from snipar.simulate import simulate_effects
 from snipar.simulate import simulate_first_gen
 from snipar.utilities import encode_str_array
 
+import code
+
 class Args :
     n_causal = 1000
     h2 = 0.5
-    outprefix = 'sim/'
+    outprefix = 'sim1/'
     nfam = 30 * 10 ** 3
     n_random = 0
     n_am = 22
@@ -399,9 +401,14 @@ def save_v_and_ped(p , ar) :
     np.savetxt(ar.outprefix + 'pedigree.txt' , p.ped , fmt = '%s')
 
 def get_gen_inds(p , gen) :
-    n_gen = str(gen)
-    gen_inds = [x.split('_')[0] == n_gen for x in p.ped[: , 0]]
-    return gen_inds
+    if type(gen) == int :
+        n_gen = str(gen)
+        gen_inds = [x.split('_')[0] == n_gen for x in p.ped[: , 0]]
+        return gen_inds
+    elif type(gen) == list :
+        gen = [str(x) for x in gen]
+        gen_inds = [x.split('_')[0] in gen for x in p.ped[: , 0]]
+        return gen_inds
 
 def save_phenotype_of_offspring_and_par(p , ar) :
     print('saving phenotypes of offspring and parents generations')
@@ -452,6 +459,16 @@ def write_gts_as_bed(p , i , gts_chr , gen_suf , ar) :
               _require_float32_64 = False)
 
 def save_gts_of_last_three_gens_then_impute_parental_gts(p , ar) :
+    _bim_cols = {
+            0 : 'chrom' ,
+            1 : 'rsid' ,
+            2 : 'map' ,
+            3 : 'position' ,
+            4 : 'allele1' ,
+            5 : 'allele2' ,
+            }
+    _bim_cols = np.array(list(_bim_cols.values()))
+
     print('Saving genotypes for last 3 generations')
 
     off_inds = get_gen_inds(p , p.n_last)
@@ -483,9 +500,6 @@ def save_gts_of_last_three_gens_then_impute_parental_gts(p , ar) :
             print('Imputing parental genotypes and saving for gen: ' + g_suf)
 
             freqs = np.mean(gts_chr.val , axis = 0) / 2.0
-            imp_ped = p.ped[g_inds , 0 :4]
-            imp_ped = np.hstack((imp_ped , np.zeros((imp_ped.shape[0] , 2) ,
-                                                    dtype = bool)))
 
             print('phased')
             hf = h5py.File(ar.outprefix + 'phased_impute_chr_' + str(
@@ -494,13 +508,26 @@ def save_gts_of_last_three_gens_then_impute_parental_gts(p , ar) :
             phased_imp = impute_all_fams_phased(g_haps[i] , freqs , g_ibd[i])
             hf['imputed_par_gts'] = phased_imp
             del phased_imp
+
             hf['bim_values'] = encode_str_array(bim_i)
-            hf['bim_columns'] = encode_str_array(np.array(['rsid' , 'map' ,
-                                                           'position' ,
-                                                           'allele1' ,
-                                                           'allele2']))
+
+            hf['bim_columns'] = encode_str_array(_bim_cols)
+
+            if g_suf == '' :
+                _2gen = [p.n_last , p.n_par]
+
+            else :
+                _2gen = [p.n_par , p.n_gpar]
+
+            _2gen_inds = get_gen_inds(p , _2gen)
+
+            imp_ped = p.ped[_2gen_inds , 0 :4]
+            imp_ped = np.hstack((imp_ped , np.zeros((imp_ped.shape[0] , 2) ,
+                                                    dtype = bool)))
+
             hf['pedigree'] = encode_str_array(imp_ped)
             hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
+
             hf.close()
 
             if False :
@@ -514,11 +541,9 @@ def save_gts_of_last_three_gens_then_impute_parental_gts(p , ar) :
                 imp = impute_all_fams(gts_chr , freqs , uibd[i])
                 hf['imputed_par_gts'] = imp
                 del imp
+
                 hf['bim_values'] = encode_str_array(bim_i)
-                hf['bim_columns'] = encode_str_array(np.array(['rsid' , 'map' ,
-                                                               'position' ,
-                                                               'allele1' ,
-                                                               'allele2']))
+                hf['bim_columns'] = encode_str_array(_bim_cols)
                 hf['pedigree'] = encode_str_array(imp_ped)
                 hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
                 hf.close()
@@ -566,14 +591,18 @@ def make_causal_out_and_save(p , ar) :
         for i in range(len(p.haps)) :
             a_chr = p.a[snp_count :(snp_count + p.snp_ids[i].shape[0])]
             a_chr_v1 = a_chr + np.random.normal(0 , np.std(a_chr) , a_chr.shape)
-            a_chr_v10 = a_chr + np.random.normal(0 , np.sqrt(10) * np.std(a_chr) , a_chr.shape)
+            a_chr_v10 = a_chr + np.random.normal(0 ,
+                                                 np.sqrt(10) * np.std(a_chr) ,
+                                                 a_chr.shape)
 
             causal_out[snp_count :(snp_count + p.snp_ids[i].shape[0]) ,
             :] = np.vstack((p.snp_ids[i] , p.alleles[i][: , 0] ,
-                            p.alleles[i][: , 1] , a_chr , a_chr_v1, a_chr_v10)).T
+                            p.alleles[i][: , 1] , a_chr , a_chr_v1 ,
+                            a_chr_v10)).T
 
             if i == 0 :
-                _cols = ['SNP' , 'A1' , 'A2' , 'direct' , 'direct_v1', 'direct_v10']
+                _cols = ['SNP' , 'A1' , 'A2' , 'direct' , 'direct_v1' ,
+                         'direct_v10']
                 _arr = np.array(_cols).reshape((1 , 6))
                 causal_out = np.vstack((_arr , causal_out))
 
@@ -624,3 +653,5 @@ def main(ar) :
 if __name__ == "__main__" :
     ar0 = Args()
     main(ar = ar0)
+
+##
