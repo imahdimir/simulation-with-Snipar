@@ -475,6 +475,13 @@ def save_gts_of_last_three_gens_then_impute_parental_gts(p , ar) :
     par_inds = get_gen_inds(p , p.n_par)
     gpar_inds = get_gen_inds(p , p.n_gpar)
 
+    _3gen_inds = get_gen_inds(p , [p.n_last , p.n_par , p.n_gpar])
+
+    imp_ped = p.ped[_3gen_inds , 0 :4]
+
+    _2false_cols = np.zeros((imp_ped.shape[0] , 2) , dtype = bool)
+    imp_ped = np.hstack((imp_ped , _2false_cols))
+
     _dc = {
             0 : (off_inds , p.new_haps , '' , p.ibd) ,
             1 : (par_inds , p.haps , '_par' , p.par_ibd) ,
@@ -512,18 +519,6 @@ def save_gts_of_last_three_gens_then_impute_parental_gts(p , ar) :
             hf['bim_values'] = encode_str_array(bim_i)
 
             hf['bim_columns'] = encode_str_array(_bim_cols)
-
-            if g_suf == '' :
-                _2gen = [p.n_last , p.n_par]
-
-            else :
-                _2gen = [p.n_par , p.n_gpar]
-
-            _2gen_inds = get_gen_inds(p , _2gen)
-
-            imp_ped = p.ped[_2gen_inds , 0 :4]
-            imp_ped = np.hstack((imp_ped , np.zeros((imp_ped.shape[0] , 2) ,
-                                                    dtype = bool)))
 
             hf['pedigree'] = encode_str_array(imp_ped)
             hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
@@ -653,5 +648,3 @@ def main(ar) :
 if __name__ == "__main__" :
     ar0 = Args()
     main(ar = ar0)
-
-##
