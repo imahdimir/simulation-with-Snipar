@@ -204,7 +204,6 @@ add_alpha_gp <- function(ro, st, t1){
   A = as.matrix(c(0, 0, 0, 0, .25, .25, .25, .25))
   A = t(A)
   
-  st = ''
   d = read.table(glue('direct_{st}obs.3.effects.txt'))
   
   al =  A %*% d$V2
