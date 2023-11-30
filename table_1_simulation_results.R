@@ -1,7 +1,7 @@
 library(glue)
 library(openxlsx)
 
-wd = "/Users/mahdi/Dropbox/1-Git/snipar-simulate-save-last-3-gens/src/snipar-simulate-save-last-3-gens/sim"
+wd = "/Users/mahdi/Dropbox/1-Git/snipar-simulate-save-last-3-gens/sim"
 setwd(wd)
 
 
@@ -71,7 +71,7 @@ add_diff_alpha <- function(ro, st, t1){
 }
 
 
-add_eta_obs <- function(ro, st, t1){
+add_eta <- function(ro, st, t1){
   
   A = as.matrix(c(0, 0, .5, .5, 0, 0, 0, 0))
   A = t(A)
@@ -92,12 +92,119 @@ add_eta_obs <- function(ro, st, t1){
   
 }
 
+add_eta_p <- function(ro, st, t1){
+  
+  A = as.matrix(c(0, 0, 1, 0, 0))
+  A = t(A)
+  
+  d = read.table(glue('direct_{st}obs.3.paternal.effects.txt'))
+  
+  al =  A %*% d$V2
+  t1[ro, 'eta_p'] <- al[1, 1]
+  
+  vc = read.table(glue('direct_{st}obs.3.paternal.vcov.txt'))
+  vc = as.matrix(vc)
+  
+  se = A %*% vc %*% t(A)
+  
+  t1[ro, 'eta_p_se'] <- sqrt(se[1, 1])
+  
+  return(t1)
+  
+}
+
+add_eta_m <- function(ro, st, t1){
+  
+  A = as.matrix(c(0, 0, 1, 0, 0))
+  A = t(A)
+  
+  d = read.table(glue('direct_{st}obs.3.maternal.effects.txt'))
+  
+  al =  A %*% d$V2
+  t1[ro, 'eta_m'] <- al[1, 1]
+  
+  vc = read.table(glue('direct_{st}obs.3.maternal.vcov.txt'))
+  vc = as.matrix(vc)
+  
+  se = A %*% vc %*% t(A)
+  
+  t1[ro, 'eta_m_se'] <- sqrt(se[1, 1])
+  
+  return(t1)
+  
+}
+
+
+add_eta_imp <- function(ro, st, t1){
+  
+  A = as.matrix(c(0, 0, .5, .5, 0, 0))
+  A = t(A)
+  
+  d = read.table(glue('direct_{st}imp.3.effects.txt'))
+  
+  al =  A %*% d$V2
+  t1[ro, 'eta_imp'] <- al[1, 1]
+  
+  vc = read.table(glue('direct_{st}imp.3.vcov.txt'))
+  vc = as.matrix(vc)
+  
+  se = A %*% vc %*% t(A)
+  
+  t1[ro, 'eta_imp_se'] <- sqrt(se[1, 1])
+  
+  return(t1)
+  
+}
+
+
+add_eta_p_imp <- function(ro, st, t1){
+  
+  A = as.matrix(c(0, 0, 1, 0))
+  A = t(A)
+  
+  d = read.table(glue('direct_{st}imp.3.paternal.effects.txt'))
+  
+  al =  A %*% d$V2
+  t1[ro, 'eta_p_imp'] <- al[1, 1]
+  
+  vc = read.table(glue('direct_{st}imp.3.paternal.vcov.txt'))
+  vc = as.matrix(vc)
+  
+  se = A %*% vc %*% t(A)
+  
+  t1[ro, 'eta_p_imp_se'] <- sqrt(se[1, 1])
+  
+  return(t1)
+  
+}
+
+add_eta_m_imp <- function(ro, st, t1){
+  
+  A = as.matrix(c(0, 0, 1, 0))
+  A = t(A)
+  
+  d = read.table(glue('direct_{st}imp.3.maternal.effects.txt'))
+  
+  al =  A %*% d$V2
+  t1[ro, 'eta_m_imp'] <- al[1, 1]
+  
+  vc = read.table(glue('direct_{st}imp.3.maternal.vcov.txt'))
+  vc = as.matrix(vc)
+  
+  se = A %*% vc %*% t(A)
+  
+  t1[ro, 'eta_m_imp_se'] <- sqrt(se[1, 1])
+  
+  return(t1)
+  
+}
 
 add_alpha_gp <- function(ro, st, t1){
   
   A = as.matrix(c(0, 0, 0, 0, .25, .25, .25, .25))
   A = t(A)
   
+  st = ''
   d = read.table(glue('direct_{st}obs.3.effects.txt'))
   
   al =  A %*% d$V2
@@ -114,6 +221,27 @@ add_alpha_gp <- function(ro, st, t1){
 
 }
 
+add_alpha_gp_imp <- function(ro, st, t1){
+  
+  A = as.matrix(c(0, 0, 0, 0, .5, .5))
+  A = t(A)
+  
+  d = read.table(glue('direct_{st}imp.3.effects.txt'))
+  
+  al =  A %*% d$V2
+  t1[ro, 'alpha_gp_imp'] <- al[1, 1]
+  
+  vc = read.table(glue('direct_{st}imp.3.vcov.txt'))
+  vc = as.matrix(vc)
+  
+  se = A %*% vc %*% t(A)
+  
+  t1[ro, 'alpha_gp_imp_se'] <- sqrt(se[1, 1])
+  
+  return(t1)
+  
+}
+
 
 t1 <- data.frame(PGI = c("v0", "v1", "v10"))
 
@@ -127,8 +255,14 @@ for (i in seq_along(mylist)){
   t1 = add_delta(i,mylist[i], t1)
   t1 = add_alpha(i, mylist[i], t1)
   t1 = add_diff_alpha(i, mylist[i], t1)
-  t1 = add_eta_obs(i, mylist[i], t1)
+  t1 = add_eta(i, mylist[i], t1)
+  t1 = add_eta_p(i, mylist[i], t1)
+  t1 = add_eta_m(i, mylist[i], t1)
+  t1 = add_eta_imp(i, mylist[i], t1)
+  t1 = add_eta_p_imp(i, mylist[i], t1)
+  t1 = add_eta_m_imp(i, mylist[i], t1)
   t1 = add_alpha_gp(i, mylist[i], t1)
+  t1 = add_alpha_gp_imp(i, mylist[i], t1)
   
 }
 

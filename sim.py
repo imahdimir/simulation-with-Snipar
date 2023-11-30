@@ -24,12 +24,10 @@ from snipar.simulate import simulate_effects
 from snipar.simulate import simulate_first_gen
 from snipar.utilities import encode_str_array
 
-import code
-
 class Args :
     n_causal = 1000
     h2 = 0.5
-    outprefix = 'sim1/'
+    outprefix = 'sim/'
     nfam = 30 * 10 ** 3
     n_random = 0
     n_am = 22
