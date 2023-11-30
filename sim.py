@@ -506,7 +506,7 @@ def save_gts_of_last_three_gens_then_impute_parental_gts(p , ar) :
 
             freqs = np.mean(gts_chr.val , axis = 0) / 2.0
 
-            print('phased')
+            print('phased imputation')
             hf = h5py.File(ar.outprefix + 'phased_impute_chr_' + str(
                     p.chroms[i]) + g_suf + '.hdf5' , 'w')
 
@@ -522,24 +522,6 @@ def save_gts_of_last_three_gens_then_impute_parental_gts(p , ar) :
             hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
 
             hf.close()
-
-            if False :
-                print('unphased')
-                hf = h5py.File(ar.outprefix + 'unphased_impute_chr_' + str(
-                        p.chroms[i]) + g_suf + '.hdf5' , 'w')
-
-                uibd = g_ibd.copy()
-                uibd[i] = np.sum(g_ibd[i] , axis = 2)
-
-                imp = impute_all_fams(gts_chr , freqs , uibd[i])
-                hf['imputed_par_gts'] = imp
-                del imp
-
-                hf['bim_values'] = encode_str_array(bim_i)
-                hf['bim_columns'] = encode_str_array(_bim_cols)
-                hf['pedigree'] = encode_str_array(imp_ped)
-                hf['families'] = encode_str_array(imp_ped[0 : :2 , 0])
-                hf.close()
 
 def write_ibd_segs_of_offsrping_and_par(p , ar) :
     print('Write IBD segments of offspring and parents')
