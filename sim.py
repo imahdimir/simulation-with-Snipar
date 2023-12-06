@@ -624,7 +624,3 @@ def main(ar) :
     write_ibd_segs_of_offsrping_and_par(p , ar)
 
     make_causal_out_and_save(p , ar)
-
-if __name__ == "__main__" :
-    ar0 = Args()
-    main(ar = ar0)
