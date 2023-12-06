@@ -603,6 +603,9 @@ def make_causal_out_and_save(p , ar) :
     np.savetxt(ar.outprefix + 'causal_effects.txt' , causal_out , fmt = '%s')
 
 def main(ar) :
+    print('worked')
+    return
+
     print('Simulating an initial generation by random-mating')
     print('Followed by ' + str(ar.n_random) + ' generations of random-mating')
     print('Followed by ' + str(ar.n_am) + ' generations of assortative mating')
