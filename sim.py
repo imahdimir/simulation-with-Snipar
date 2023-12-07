@@ -7,7 +7,7 @@ from simulation_code.simulate import main
 class WithIndirArgs :
     n_causal = 1000
     h2 = .5
-    outprefix = 'sim_output_with_indir/'
+    outprefix = 'sim_output_wt_indir/'
     nfam = 30 * 10 ** 3
     n_random = 0
     n_am = 22
@@ -36,5 +36,4 @@ class NoIndirArgs :
 
 if __name__ == '__main__' :
     ar = WithIndirArgs()
-
     main(ar)

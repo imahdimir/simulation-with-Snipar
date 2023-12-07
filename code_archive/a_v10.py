@@ -5,18 +5,48 @@
 import numpy as np
 import pandas as pd
 
-def main() :
+def add_causal_effect_cols() :
     pass
 
     ##
-    fp = '/Users/mahdi/Dropbox/1-Git/snipar-simulate-save-last-3-gens/src/snipar-simulate-save-last-3-gens/sim/causal_effects.txt'
+    fp = '/Users/mahdi/Dropbox/1-Git/simulation-with-Snipar/sim_output_wt_indir/causal_effects.txt'
+    df = pd.read_csv(fp , delimiter = '\s' , header = None)
+
+    ##
+    df.columns = ['SNP' , 'A1' , 'A2' , 'direct' , 'indirect']
+
+    ##
+    df.to_csv(fp , index = False , sep = ' ')
+
+def add_sum_column_and_noisy_columns() :
+    pass
+
+    ##
+    fp = '/Users/mahdi/Dropbox/1-Git/simulation-with-Snipar/sim_output_wt_indir/causal_effects.txt'
     df = pd.read_csv(fp , delimiter = '\s')
 
     ##
-    df['direct_v10'] = df['direct'] + np.random.normal(0 ,
-                                                       np.sqrt(10) * np.std(
-                                                               df['direct']) ,
-                                                       len(df))
+    df['sum'] = df['direct'] + df['indirect']
+
+    ##
+    df['sum_v1'] = df['sum'] + np.random.normal(0 ,
+                                                1 * np.std(df['sum']) ,
+                                                len(df))
+
+    ##
+    df['sum_v10'] = df['sum'] + np.random.normal(0 ,
+                                                 np.sqrt(10) * np.std(
+                                                         df['sum']) ,
+                                                 len(df))
+
+    ##
+    df.to_csv(fp , index = False , sep = ' ')
+
+    ##
+
+def nex() :
+    pass
+    ##
 
     ##
     ce = df.to_numpy()
