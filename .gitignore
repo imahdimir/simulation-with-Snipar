@@ -1,8 +1,6 @@
 # Manual
-
 snipar/
-
-/sim*/
+/sim_output*/
 
 # General
 **/.DS_Store
@@ -190,4 +188,3 @@ cython_debug/
 Network Trash Folder
 Temporary Items
 .apdisk
-
