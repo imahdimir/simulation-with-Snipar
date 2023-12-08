@@ -22,7 +22,7 @@ def add_sum_column_and_noisy_columns() :
     pass
 
     ##
-    fp = '/Users/mahdi/Dropbox/1-Git/simulation-with-Snipar/sim_output_wt_indir/causal_effects.txt'
+    fp = '/Users/mahdi/Dropbox/1-Git/simulation-with-Snipar/sim_output_wt_indir_non_eq/causal_effects.txt'
     df = pd.read_csv(fp , delimiter = '\s')
 
     ##
@@ -43,7 +43,7 @@ def add_sum_column_and_noisy_columns() :
     df.to_csv(fp , index = False , sep = ' ')
 
     ##
-
+ 
 def nex() :
     pass
     ##

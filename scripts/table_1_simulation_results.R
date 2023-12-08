@@ -239,7 +239,6 @@ add_alpha_gp_imp <- function(ro, st, t1, bc){
 }
 
 
-
 beta_col = 'sum'
 
 if (beta_col == 'direct') {
@@ -248,14 +247,14 @@ if (beta_col == 'direct') {
 }
 
 if (beta_col == 'sum') {
-  wd = "/Users/mahdi/Dropbox/1-Git/simulation-with-Snipar/sim_output_wt_indir"
+  wd = "/Users/mahdi/Dropbox/1-Git/simulation-with-Snipar/sim_output_wt_indir_non_eq"
   setwd(wd)
 }
 
 
 t1 <- data.frame(PGI = c("v0", "v1", "v10"))
 
-mylist <- list('' ,'v1_', 'v10_')
+mylist <- list('' ,'v1_') #, 'v10_')
 
 bc = beta_col
 

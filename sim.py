@@ -4,6 +4,21 @@
 
 from simulation_code.simulate import main
 
+class WithIndirNonEq :
+    n_causal = 1000
+    h2 = .5
+    outprefix = 'sim_output_wt_indir_non_eq/'
+    nfam = 30 * 10 ** 3
+    n_random = 3
+    n_am = 1
+    save_par_gts = True
+    impute = True
+    unphased_impute = False
+    r_par = .5
+    v_indir = .5
+    r_dir_indir = .5
+    beta_vert = 0
+
 class WithIndirArgs :
     n_causal = 1000
     h2 = .5
@@ -35,5 +50,5 @@ class NoIndirArgs :
     beta_vert = 0
 
 if __name__ == '__main__' :
-    ar = WithIndirArgs()
+    ar = WithIndirNonEq()
     main(ar)

@@ -1,6 +1,6 @@
 library(glue)
 
-wd = "/Users/mahdi/Dropbox/1-Git/simulation-with-Snipar/sim_output_wt_indir"
+wd = "/Users/mahdi/Dropbox/1-Git/simulation-with-Snipar/sim_output_wt_indir_non_eq"
 setwd(wd)
 
 
@@ -9,7 +9,7 @@ keep_offspring_only <- function(st1, st2){
   print(fn)
   
   d = read.table(fn , header = T)
-  d = d[sapply(d$FID, function(x) strsplit(x, "_")[[1]][1]) == "23",]
+  d = d[sapply(d$FID, function(x) strsplit(x, "_")[[1]][1]) == "5",]
   
   fn = glue('sum_{st1}{st2}_offspring_only.pgs.txt')
   print(fn)
@@ -18,7 +18,7 @@ keep_offspring_only <- function(st1, st2){
 }
 
 
-noise <- list('' ,'v1_', 'v10_')
+noise <- list('' ,'v1_')  # , 'v10_')
 obs_imp <- list('obs', 'imp')
 
 cart_prod = expand.grid(noise, obs_imp)
