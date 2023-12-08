@@ -1,17 +1,17 @@
 library(glue)
 
-wd = "/Users/mahdi/Dropbox/1-Git/snipar-simulate-save-last-3-gens"
+wd = "/Users/mahdi/Dropbox/1-Git/simulation-with-Snipar/sim_output_wt_indir"
 setwd(wd)
 
 
 keep_offspring_only <- function(st1, st2){
-  fn = glue("direct_{st1}{st2}.pgs.txt")
+  fn = glue("sum_{st1}{st2}.pgs.txt")
   print(fn)
   
   d = read.table(fn , header = T)
   d = d[sapply(d$FID, function(x) strsplit(x, "_")[[1]][1]) == "23",]
   
-  fn = glue('direct_{st1}{st2}_offspring.pgs.txt')
+  fn = glue('sum_{st1}{st2}_offspring_only.pgs.txt')
   print(fn)
   
   write.table(d, fn, quote = FALSE, row.names = FALSE)
