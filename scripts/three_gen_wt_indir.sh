@@ -15,7 +15,7 @@ pip install snipar==0.0.18
 # run the simulation with indirect effects, I configured proper arguments in sim.py
 # $ python sim.py
 
-cd sim_output_wt_indir
+cd sim_out_wt_indir
 
 # combining gts
 plink --bfile chr_1 --bmerge chr_1_par --out chr_1_off_and_par

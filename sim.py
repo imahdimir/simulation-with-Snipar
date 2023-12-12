@@ -4,10 +4,10 @@
 
 from simulation_code.simulate import main
 
-class WithIndirNonEq :
+class WtIndirNonEq :
     n_causal = 1000
     h2 = .5
-    outprefix = 'sim_output_wt_indir_non_eq/'
+    outprefix = 'sim_out_wt_indir_non_eq/'
     nfam = 30 * 10 ** 3
     n_random = 3
     n_am = 1
@@ -19,10 +19,10 @@ class WithIndirNonEq :
     r_dir_indir = .5
     beta_vert = 0
 
-class WithIndirArgs :
+class WtIndir :
     n_causal = 1000
     h2 = .5
-    outprefix = 'sim_output_wt_indir/'
+    outprefix = 'sim_out_wt_indir/'
     nfam = 30 * 10 ** 3
     n_random = 0
     n_am = 22
@@ -34,10 +34,10 @@ class WithIndirArgs :
     r_dir_indir = .5
     beta_vert = 0
 
-class NoIndirArgs :
+class NoIndir :
     n_causal = 1000
     h2 = 0.5
-    outprefix = 'sim_output_no_indir/'
+    outprefix = 'sim_out_no_indir/'
     nfam = 30 * 10 ** 3
     n_random = 0
     n_am = 22
@@ -49,6 +49,21 @@ class NoIndirArgs :
     r_dir_indir = None
     beta_vert = 0
 
+class NoIndirNonEq :
+    n_causal = 1000
+    h2 = 0.5
+    outprefix = 'sim_out_no_indir_non_eq/'
+    nfam = 30 * 10 ** 3
+    n_random = 3
+    n_am = 1
+    save_par_gts = True
+    impute = True
+    unphased_impute = False
+    r_par = 0.5
+    v_indir = 0
+    r_dir_indir = None
+    beta_vert = 0
+
 if __name__ == '__main__' :
-    ar = WithIndirNonEq()
+    ar = NoIndirNonEq()
     main(ar)

@@ -1,10 +1,5 @@
 
-# no indir
-wd = ""
-setwd(wd)
-
-# with indir
-wd = "/Users/mahdi/Dropbox/1-Git/simulation-with-Snipar/sim_output_wt_indir_non_eq"
+wd = "/Users/mahdi/Dropbox/1-Git/simulation-with-Snipar/sim_out_no_indir_non_eq"
 setwd(wd)
 
 d = read.table('VCs.txt', header = T)
