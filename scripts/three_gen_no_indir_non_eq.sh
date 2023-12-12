@@ -1,8 +1,3 @@
-""" 
-    Simulation with Indirect Effects 
-
-    """
-
 pyenv virtualenv 3.9.17 sim_venv
 pyenv activate sim_venv
 
