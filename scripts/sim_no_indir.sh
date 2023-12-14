@@ -1,6 +1,6 @@
 # # I redone the simulation, adding whole last 3 gen pedigree to both imputed gts files.
 
-cd sim
+cd sim_no_indir
 
 # # combining gts
 plink --bfile chr_1 --bmerge chr_1_par --out chr_1_off_and_par
